@@ -1,4 +1,4 @@
-// Indicators (UT Bot, VWAP, SSL Channel, RSI, EMA200, volume) + feature vector + outcome label.
+// Indicators (UT Bot, VWAP, SSL Channel, Buy Sell Signal, Buy Sell Volume, RSI, EMA200, volume) + feature vector + outcome label.
 // Candles: [{t, o, h, l, c, v}] ascending by time.
 
 export const SL_ATR = 1.5;    // stop distance in ATRs
@@ -9,6 +9,8 @@ export const WARMUP = 210;    // bars needed before indicators are trustworthy
 export const FEE_ROUNDTRIP = 0.0011; // 0.055% taker x2, charged against every label
 
 const UT_KEY = 1, UT_ATR = 10, ATR_LEN = 14, SSL_LEN = 10, RSI_LEN = 14, EMA_LEN = 200, VOL_LEN = 20;
+const BS_FAST = 9, BS_SLOW = 21; // Buy Sell Signal: fast EMA crossing slow EMA
+const BSV_LEN = 14;              // Buy Sell Volume: smoothing of buyers' / sellers' volume
 
 export function computeIndicators(c) {
   const n = c.length;
@@ -16,12 +18,15 @@ export function computeIndicators(c) {
   const atr = F(), atrUt = F(), utTrail = F(), vwap = F(), sslUp = F(), sslDown = F(), rsi = F(), ema = F(), volZ = F();
   const utDir = new Int8Array(n), vwapSide = new Int8Array(n), sslDir = new Int8Array(n);
   const utAge = new Int32Array(n), vwapAge = new Int32Array(n), sslAge = new Int32Array(n);
-  if (!n) return { atr, utTrail, utDir, utAge, vwap, vwapSide, vwapAge, sslUp, sslDown, sslDir, sslAge, rsi, ema, volZ };
+  const bsDir = new Int8Array(n), bvDir = new Int8Array(n), bsAge = new Int32Array(n), bvAge = new Int32Array(n), bvDelta = F();
+  if (!n) return { atr, utTrail, utDir, utAge, vwap, vwapSide, vwapAge, sslUp, sslDown, sslDir, sslAge, rsi, ema, volZ, bsDir, bsAge, bvDir, bvAge, bvDelta };
 
   let cumPV = 0, cumV = 0, day = -1;
   let avgGain = 0, avgLoss = 0;
   let sumH = 0, sumL = 0;
   const kEma = 2 / (EMA_LEN + 1);
+  const kF = 2 / (BS_FAST + 1), kS = 2 / (BS_SLOW + 1), kV = 2 / (BSV_LEN + 1);
+  let emaF = 0, emaS = 0, buyE = 0, sellE = 0;
   const lv = new Float64Array(n);
 
   for (let i = 0; i < n; i++) {
@@ -72,6 +77,21 @@ export function computeIndicators(c) {
     // EMA 200
     ema[i] = p ? ema[i - 1] + kEma * (k.c - ema[i - 1]) : k.c;
 
+    // Buy Sell Signal: fast EMA above slow EMA = buy, below = sell; the flip is the signal
+    emaF = p ? emaF + kF * (k.c - emaF) : k.c;
+    emaS = p ? emaS + kS * (k.c - emaS) : k.c;
+    bsDir[i] = emaF > emaS ? 1 : emaF < emaS ? -1 : (p ? bsDir[i - 1] : 1);
+    bsAge[i] = p && bsDir[i] === bsDir[i - 1] ? bsAge[i - 1] + 1 : (p ? 0 : 99);
+
+    // Buy Sell Volume: each bar's volume is split by where it closed inside its range
+    // (close at the high = all buyers, at the low = all sellers), then both sides are smoothed.
+    const rng = k.h - k.l, buy = rng > 0 ? (k.v * (k.c - k.l)) / rng : k.v / 2, sell = k.v - buy;
+    buyE = p ? buyE + kV * (buy - buyE) : buy;
+    sellE = p ? sellE + kV * (sell - sellE) : sell;
+    bvDelta[i] = buyE + sellE > 0 ? (buyE - sellE) / (buyE + sellE) : 0;
+    bvDir[i] = buyE > sellE ? 1 : buyE < sellE ? -1 : (p ? bvDir[i - 1] : 1);
+    bvAge[i] = p && bvDir[i] === bvDir[i - 1] ? bvAge[i - 1] + 1 : (p ? 0 : 99);
+
     // Volume z-score (log volume vs previous 20 bars)
     lv[i] = Math.log(1 + k.v);
     if (i >= VOL_LEN) {
@@ -81,7 +101,7 @@ export function computeIndicators(c) {
       volZ[i] = (lv[i] - mean) / (sd + 0.05);
     }
   }
-  return { atr, utTrail, utDir, utAge, vwap, vwapSide, vwapAge, sslUp, sslDown, sslDir, sslAge, rsi, ema, volZ };
+  return { atr, utTrail, utDir, utAge, vwap, vwapSide, vwapAge, sslUp, sslDown, sslDir, sslAge, rsi, ema, volZ, bsDir, bsAge, bvDir, bvAge, bvDelta };
 }
 
 export const FEATURE_NAMES = [
@@ -108,6 +128,10 @@ export const FEATURE_NAMES = [
   'מומנטום של BTC',
   'הסכמה בין האינדיקטורים',
   'שלושתם מסכימים',
+  'Buy Sell Signal – כיוון',
+  'Buy Sell Signal – היפוך טרי',
+  'Buy Sell Volume – מאזן קונים מול מוכרים',
+  'Buy Sell Volume – היפוך טרי',
 ];
 export const NF = FEATURE_NAMES.length;
 
@@ -144,6 +168,10 @@ export function features(ind, c, i, side, btc) {
   x[20] = btc ? side * btc[1] : 0;
   x[21] = (side * agree) / 3;
   x[22] = side * agree === 3 ? 1 : 0;
+  x[23] = side * ind.bsDir[i];
+  x[24] = side * ind.bsDir[i] * Math.exp(-ind.bsAge[i] / 4);
+  x[25] = clip(side * ind.bvDelta[i] * 5, 2);
+  x[26] = side * ind.bvDir[i] * Math.exp(-ind.bvAge[i] / 4);
   return x;
 }
 
@@ -186,6 +214,8 @@ export function crossKinds(ind, i, side) {
   if (ind.utAge[i] === 0 && ind.utDir[i] === side) k.push('ut');
   if (ind.vwapAge[i] === 0 && ind.vwapSide[i] === side) k.push('vwap');
   if (ind.sslAge[i] === 0 && ind.sslDir[i] === side) k.push('ssl');
+  if (ind.bsAge[i] === 0 && ind.bsDir[i] === side) k.push('bs');
+  if (ind.bvAge[i] === 0 && ind.bvDir[i] === side) k.push('bv');
   return k;
 }
 

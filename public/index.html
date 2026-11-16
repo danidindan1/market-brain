@@ -187,7 +187,7 @@ async function loadChart(keepView) {
   if (o) for (const [price, title, color] of [[o.entry, 'כניסה', '#60a5fa'], [o.sl, 'סטופ', '#ef4444'], [o.tp, 'יעד', '#22c55e']])
     priceLines.push(candles.createPriceLine({ price, title, color, lineWidth: 1, lineStyle: 2 }));
   if (!keepView) chart.timeScale().setVisibleLogicalRange({ from: d.candles.length - 160, to: d.candles.length + 6 });
-  const KN = { ut: 'UT Bot', vwap: 'VWAP', ssl: 'SSL' };
+  const KN = { ut: 'UT Bot', vwap: 'VWAP', ssl: 'SSL', bs: 'Buy Sell Signal', bv: 'Buy Sell Volume' };
   $('odds').innerHTML = d.odds ? 'סיכוי ל-TP במטבע הזה אחרי הצטלבות: ' + Object.entries(d.odds).map(([k, o]) => { const [kind, sd] = k.split(':'); return `${KN[kind]} ${sd > 0 ? 'לונג' : 'שורט'} <b class="num">${o.n ? pct(o.coinTp) : '–'}</b> <span class="num">(${o.n})</span>`; }).join(' · ') : '';
   connectLive();
 }
@@ -239,7 +239,7 @@ function render() {
     return `<div class="coin ${c.s === sym ? 'sel' : ''}" data-s="${c.s}">
       <span><b class="num">${c.s.replace('USDT', '')}</b> ${trig ? `<span class="${trig > 0 ? 'up' : 'down'}">●</span>` : ''}</span>
       <span class="num">${fmtP(c.price)}</span>
-      <small><span class="dots" title="UT Bot · VWAP · SSL">${dot(c.ut)}${dot(c.vw)}${dot(c.ssl)}</span> <span class="num ${c.chg >= 0 ? 'up' : 'down'}">${c.chg == null ? '' : sgn(c.chg, 1) + '%'}</span></small>
+      <small><span class="dots" title="UT Bot · VWAP · SSL · Buy Sell Signal · Buy Sell Volume">${dot(c.ut)}${dot(c.vw)}${dot(c.ssl)}${dot(c.bs)}${dot(c.bv)}</span> <span class="num ${c.chg >= 0 ? 'up' : 'down'}">${c.chg == null ? '' : sgn(c.chg, 1) + '%'}</span></small>
       <span class="conf num ${b ? (b[0] > 0 ? 'up' : 'down') : 'mute'}">${b ? (b[0] > 0 ? 'L ' : 'S ') + pct(b[1]) : '–'}</span>
     </div>`;
   }).join('') || '<div class="empty" style="padding:12px">אין מטבעות</div>';
@@ -249,7 +249,7 @@ function render() {
   if (c && c.pL != null) {
     const tag = (v, a, b) => `<b class="${v > 0 ? 'up' : 'down'}">${v > 0 ? a : b}</b>`;
     const trig = [...(c.tL || []), ...(c.tS || [])];
-    $('read').innerHTML = `<span>UT Bot: ${tag(c.ut, 'קנייה', 'מכירה')}</span><span>VWAP: ${tag(c.vw, 'מעל', 'מתחת')}</span><span>SSL: ${tag(c.ssl, 'ירוק', 'אדום')}</span>
+    $('read').innerHTML = `<span>UT Bot: ${tag(c.ut, 'קנייה', 'מכירה')}</span><span>VWAP: ${tag(c.vw, 'מעל', 'מתחת')}</span><span>SSL: ${tag(c.ssl, 'ירוק', 'אדום')}</span><span>Buy Sell Signal: ${tag(c.bs, 'קנייה', 'מכירה')}</span><span>Buy Sell Volume: ${tag(c.bv, 'קונים', 'מוכרים')}</span>
       <span>RSI: <b class="num">${c.rsi.toFixed(0)}</b></span><span>ביטחון ללונג: <b class="num up">${pct(c.pL)}</b></span><span>ביטחון לשורט: <b class="num down">${pct(c.pS)}</b></span>
       <span class="mute">${trig.length ? 'טריגר טרי: ' + trig.join(' · ') : 'אין טריגר טרי בנר האחרון'} (לפי נרות ${ivHe(state.cfg.tf)})</span>`;
   } else $('read').innerHTML = '<span class="mute">אין עדיין מספיק נתונים למטבע הזה</span>';
@@ -267,8 +267,8 @@ function render() {
   $('feed').insertAdjacentHTML('beforeend', `<div class="note">נקודת איזון: צריך לפגוע ב-TP בערך ב-<span class="num">${pct(be)}</span> מהמקרים כדי לא להפסיד (יעד ${state.cfg.tpAtr} ATR מול סטופ ${state.cfg.slAtr} ATR, אחרי עמלות).</div>`);
 
   // market-wide odds per indicator
-  const KN = { ut: 'UT Bot', vwap: 'VWAP', ssl: 'SSL', multi: 'שניים ומעלה יחד' }, tg = state.trig || {};
-  $('trig').innerHTML = `<table><tr><th>הצטלבות</th><th>כיוון</th><th>פגע ב-TP</th><th>ממוצע</th><th>מקרים</th></tr>${['ut', 'vwap', 'ssl', 'multi'].flatMap((k) => [1, -1].map((sd) => { const v = tg[k + ':' + sd]; return v ? `<tr><td>${KN[k]}</td><td class="${sd > 0 ? 'up' : 'down'}">${sd > 0 ? 'לונג' : 'שורט'}</td><td class="num ${v.tp >= be ? 'up' : 'down'}">${(v.tp * 100).toFixed(1)}%</td><td class="num ${v.r > 0 ? 'up' : 'down'}">${sgn(v.r, 2)}R</td><td class="num">${v.n.toLocaleString('en')}</td></tr>` : ''; })).join('')}</table>
+  const KN = { ut: 'UT Bot', vwap: 'VWAP', ssl: 'SSL', bs: 'Buy Sell Signal', bv: 'Buy Sell Volume', multi: 'שניים ומעלה יחד' }, tg = state.trig || {};
+  $('trig').innerHTML = `<table><tr><th>הצטלבות</th><th>כיוון</th><th>פגע ב-TP</th><th>ממוצע</th><th>מקרים</th></tr>${['ut', 'vwap', 'ssl', 'bs', 'bv', 'multi'].flatMap((k) => [1, -1].map((sd) => { const v = tg[k + ':' + sd]; return v ? `<tr><td>${KN[k]}</td><td class="${sd > 0 ? 'up' : 'down'}">${sd > 0 ? 'לונג' : 'שורט'}</td><td class="num ${v.tp >= be ? 'up' : 'down'}">${(v.tp * 100).toFixed(1)}%</td><td class="num ${v.r > 0 ? 'up' : 'down'}">${sgn(v.r, 2)}R</td><td class="num">${v.n.toLocaleString('en')}</td></tr>` : ''; })).join('')}</table>
     <div class="note" style="margin-top:6px">מה קרה בפועל אחרי כל הצטלבות בכל המטבעות בהיסטוריה שנטענה (כחודשיים), בכניסה בסגירת הנר.</div>`;
 
   // open signals

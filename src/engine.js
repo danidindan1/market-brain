@@ -12,6 +12,8 @@ const CROSS_HE = {
   ut: ['UT Bot התהפך לקנייה', 'UT Bot התהפך למכירה'],
   vwap: ['חצה את ה-VWAP למעלה', 'חצה את ה-VWAP למטה'],
   ssl: ['SSL התהפך לירוק', 'SSL התהפך לאדום'],
+  bs: ['Buy Sell Signal נתן קנייה', 'Buy Sell Signal נתן מכירה'],
+  bv: ['Buy Sell Volume: הקונים עקפו את המוכרים', 'Buy Sell Volume: המוכרים עקפו את הקונים'],
 };
 const SHRINK = 30; // a coin's own record counts fully only after ~30 crossovers; before that it leans on the market-wide rate
 const tick = () => new Promise((r) => setImmediate(r));
@@ -57,7 +59,8 @@ export class Engine extends EventEmitter {
       const j = JSON.parse(fs.readFileSync(this.cfg.stateFile, 'utf8'));
       if (j.tf !== this.cfg.tf) return;
       this.brain = Brain.fromJSON(j.brain, NF);
-      this.saved = j.coins || {};
+      // a brain with a different feature set is discarded, so every coin must be relearned from the start of history
+      this.saved = j.brain?.nf === NF ? j.coins || {} : {};
       this.open = j.open || [];
       this.history = j.history || [];
     } catch { /* first run */ }
@@ -244,7 +247,7 @@ export class Engine extends EventEmitter {
       t: c[i].t, close: c[i].c, atr: ind.atr[i],
       pL: this.brain.predict(coin.sym, features(ind, c, i, 1, btc)),
       pS: this.brain.predict(coin.sym, features(ind, c, i, -1, btc)),
-      ut: ind.utDir[i], utAge: ind.utAge[i], vw: ind.vwapSide[i], ssl: ind.sslDir[i], rsi: ind.rsi[i],
+      ut: ind.utDir[i], utAge: ind.utAge[i], vw: ind.vwapSide[i], ssl: ind.sslDir[i], bs: ind.bsDir[i], bv: ind.bvDir[i], rsi: ind.rsi[i],
       kL, kS, trigL: kL.map((k) => CROSS_HE[k][0]), trigS: kS.map((k) => CROSS_HE[k][1]), hi: c[i].h, lo: c[i].l,
     };
   }
@@ -351,7 +354,7 @@ export class Engine extends EventEmitter {
       const s = c.sum;
       coins.push({
         s: c.sym, price: c.price, chg: c.chg, to: c.turnover,
-        ...(s ? { pL: s.pL, pS: s.pS, ut: s.ut, vw: s.vw, ssl: s.ssl, rsi: s.rsi, tL: s.trigL, tS: s.trigS } : {}),
+        ...(s ? { pL: s.pL, pS: s.pS, ut: s.ut, vw: s.vw, ssl: s.ssl, bs: s.bs, bv: s.bv, rsi: s.rsi, tL: s.trigL, tS: s.trigS } : {}),
       });
     }
     const h = this.history, wins = h.filter((x) => x.r > 0).length;
@@ -388,7 +391,7 @@ export class Engine extends EventEmitter {
       } else { out.pL.push(null); out.pS.push(null); }
     }
     const coin = this.coins.get(sym);
-    out.odds = withProb ? Object.fromEntries(['ut', 'vwap', 'ssl'].flatMap((k) => [1, -1].map((sd) => [`${k}:${sd}`, this.odds(coin, `${k}:${sd}`)]))) : null;
+    out.odds = withProb ? Object.fromEntries(['ut', 'vwap', 'ssl', 'bs', 'bv'].flatMap((k) => [1, -1].map((sd) => [`${k}:${sd}`, this.odds(coin, `${k}:${sd}`)]))) : null;
     out.signals = [...this.open, ...this.history].filter((s) => s.sym === sym);
     return out;
   }
