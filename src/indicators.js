@@ -153,24 +153,40 @@ export function btcContext(ind, c, i) {
   return [clip((c[i].c - ind.ema[i]) / a, 20) / 10, clip((c[i].c - c[Math.max(0, i - 12)].c) / a, 10) / 5];
 }
 
-// Outcome of entering `side` at close of bar i with SL/TP in ATRs, after fees.
-// Returns a label in [0,1] where expected net R = (1+RR)*label - 1. Needs i+HORIZON <= n-1.
-export function label(c, i, side, atr) {
+// What actually happened after entering `side` at the close of bar i with SL/TP in ATRs.
+// res: 'tp' (target hit) / 'sl' (stop hit) / 'to' (neither within HORIZON bars); r = net result in R after fees.
+// Needs i+HORIZON <= n-1.
+export function outcome(c, i, side, atr) {
   const entry = c[i].c, slD = SL_ATR * atr, tpD = TP_ATR * atr;
   if (!(slD > 0)) return null;
-  const feeR = (FEE_ROUNDTRIP * entry) / slD;
-  let r = null;
+  let r = null, res = 'to';
   for (let j = i + 1; j <= i + HORIZON; j++) {
     const k = c[j];
     const hitSl = side > 0 ? k.l <= entry - slD : k.h >= entry + slD;
     const hitTp = side > 0 ? k.h >= entry + tpD : k.l <= entry - tpD;
-    if (hitSl) { r = -1; break; }           // both in one bar counts as a loss (conservative)
-    if (hitTp) { r = RR; break; }
+    if (hitSl) { r = -1; res = 'sl'; break; }   // both in one bar counts as a loss (conservative)
+    if (hitTp) { r = RR; res = 'tp'; break; }
   }
   if (r === null) r = (side * (c[i + HORIZON].c - entry)) / slD;
-  r -= feeR;
-  const y = (r + 1) / (1 + RR);
+  return { res, r: r - (FEE_ROUNDTRIP * entry) / slD };
+}
+
+// Training label in [0,1] where expected net R = (1+RR)*label - 1.
+export function label(c, i, side, atr) {
+  const o = outcome(c, i, side, atr);
+  if (!o) return null;
+  const y = (o.r + 1) / (1 + RR);
   return y < 0 ? 0 : y > 1 ? 1 : y;
+}
+
+// Which indicators crossed in favour of `side` exactly on bar i.
+export function crossKinds(ind, i, side) {
+  const k = [];
+  if (i < 1) return k;
+  if (ind.utAge[i] === 0 && ind.utDir[i] === side) k.push('ut');
+  if (ind.vwapAge[i] === 0 && ind.vwapSide[i] === side) k.push('vwap');
+  if (ind.sslAge[i] === 0 && ind.sslDir[i] === side) k.push('ssl');
+  return k;
 }
 
 export const evR = (p) => (1 + RR) * p - 1; // expected net R for a predicted label p

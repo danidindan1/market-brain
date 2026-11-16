@@ -44,6 +44,7 @@
   .card { background: var(--panel2); border-radius: 10px; padding: 9px 10px; margin-bottom: 8px; border-inline-start: 3px solid var(--mute); cursor: pointer; }
   .card.long { border-color: var(--green); } .card.short { border-color: var(--red); }
   .card .row { display: flex; justify-content: space-between; gap: 8px; } .card small { color: var(--mute); display: block; }
+  .badge { font-size: 11px; padding: 1px 8px; border-radius: 99px; font-weight: 600; } .badge.v2 { background: #14532d; color: #86efac; } .badge.v1 { background: #713f12; color: #fde68a; } .badge.v0 { background: #450a0a; color: #fca5a5; }
   .empty { color: var(--mute); font-size: 13px; }
   table { width: 100%; border-collapse: collapse; font-size: 12.5px; } td, th { padding: 3px 4px; text-align: start; border-bottom: 1px solid var(--line); } th { color: var(--mute); font-weight: 500; }
   .bar { height: 6px; border-radius: 3px; background: var(--blue); display: inline-block; vertical-align: middle; }
@@ -82,6 +83,7 @@
     </div>
     <div id="chart"></div>
     <div id="read"></div>
+    <div id="odds" class="note" style="padding:0 12px 6px"></div>
     <div id="read2" class="legend" style="padding:0 12px 8px">
       <span><i style="background:#f59e0b"></i>VWAP</span>
       <span><i style="background:#22c55e"></i><i style="background:#ef4444"></i>קו UT Bot</span>
@@ -91,7 +93,11 @@
   </div>
 
   <aside id="sidePane">
+    <section><h3>הצטלבויות בנר האחרון – להיכנס או לא?</h3>
+      <div class="tools" style="padding:0 0 8px;border:0"><button data-f="1" class="fbtn on">כדאי + גבולי</button><button data-f="0" class="fbtn">הכול</button></div>
+      <div id="feed"></div></section>
     <section><h3>עסקאות פתוחות – הבוט אמר להיכנס</h3><div id="open"></div></section>
+    <section><h3>סיכויי פגיעה ב-TP לפי אינדיקטור (כל השוק)</h3><div id="trig"></div></section>
     <section><h3>מה הבוט למד עד עכשיו</h3><div id="brain"></div></section>
     <section><h3>היסטוריית איתותים</h3><div id="perf" class="note" style="margin-bottom:6px"></div><div id="history"></div></section>
     <section class="note">הבוט נותן איתותים בלבד ולא מבצע עסקאות. זה כלי עזר ולא ייעוץ השקעות – אין הבטחה לרווח, ואפשר להפסיד כסף.</section>
@@ -103,6 +109,7 @@
 const $ = (id) => document.getElementById(id);
 const TZ = -new Date().getTimezoneOffset() * 60;
 const IVS = [['5', '5ד'], ['15', '15ד'], ['60', '1ש'], ['240', '4ש'], ['D', 'יומי']];
+let feedMin = 1;
 let state = null, sym = 'BTCUSDT', iv = null, chartData = null, liveWs = null, priceLines = [], soundOn = false, audio = null;
 
 const fmtP = (p) => p == null ? '–' : p >= 1000 ? p.toLocaleString('en', { maximumFractionDigits: 1 }) : p >= 1 ? p.toFixed(3) : p >= 0.01 ? p.toFixed(5) : p.toPrecision(4);
@@ -159,6 +166,8 @@ async function loadChart(keepView) {
   if (o) for (const [price, title, color] of [[o.entry, 'כניסה', '#60a5fa'], [o.sl, 'סטופ', '#ef4444'], [o.tp, 'יעד', '#22c55e']])
     priceLines.push(candles.createPriceLine({ price, title, color, lineWidth: 1, lineStyle: 2 }));
   if (!keepView) chart.timeScale().setVisibleLogicalRange({ from: d.candles.length - 160, to: d.candles.length + 6 });
+  const KN = { ut: 'UT Bot', vwap: 'VWAP', ssl: 'SSL' };
+  $('odds').innerHTML = d.odds ? 'סיכוי ל-TP במטבע הזה אחרי הצטלבות: ' + Object.entries(d.odds).map(([k, o]) => { const [kind, sd] = k.split(':'); return `${KN[kind]} ${sd > 0 ? 'לונג' : 'שורט'} <b class="num">${o.n ? pct(o.coinTp) : '–'}</b> <span class="num">(${o.n})</span>`; }).join(' · ') : '';
   connectLive();
 }
 
@@ -189,6 +198,7 @@ function select(s, interval) {
 }
 
 // ---------- panels ----------
+const breakEven = () => { const rr = state.cfg.tpAtr / state.cfg.slAtr; return (1 + 0.1) / (1 + rr); }; // ~0.1R of fees on a typical stop
 const best = (c) => c.pL == null ? null : c.pL >= c.pS ? [1, c.pL] : [-1, c.pS];
 function render() {
   if (!state) return;
@@ -223,6 +233,23 @@ function render() {
       <span class="mute">${trig.length ? 'טריגר טרי: ' + trig.join(' · ') : 'אין טריגר טרי בנר האחרון'} (לפי נרות ${ivHe(state.cfg.tf)})</span>`;
   } else $('read').innerHTML = '<span class="mute">אין עדיין מספיק נתונים למטבע הזה</span>';
 
+  // crossover feed
+  const VERD = ['לא להיכנס', 'גבולי', 'כדאי להיכנס'], be = breakEven();
+  const fl = (state.feed || []).filter((f) => f.verdict >= feedMin);
+  $('feed').innerHTML = fl.slice(0, 40).map((f) => `<div class="card ${f.side > 0 ? 'long' : 'short'}" data-s="${f.sym}">
+      <div class="row"><b><span class="num">${f.sym.replace('USDT', '')}</span> · ${f.side > 0 ? 'לונג' : 'שורט'}</b><span class="badge v${f.verdict}">${VERD[f.verdict]}</span></div>
+      <div class="row"><span>${f.reasons.join(' + ')}</span></div>
+      <div class="row"><span>סיכוי ל-TP: <b class="num ${f.tpProb >= be ? 'up' : 'down'}">${pct(f.tpProb)}</b></span><span class="mute">צפי <span class="num">${sgn(f.expR, 2)}R</span></span></div>
+      <div class="row"><span>כניסה <span class="num">${fmtP(f.entry)}</span></span><span class="down">סטופ <span class="num">${fmtP(f.sl)}</span></span><span class="up">יעד <span class="num">${fmtP(f.tp)}</span></span></div>
+      <small>במטבע הזה: ${f.n ? `<span class="num">${pct(f.coinTp)}</span> מתוך ${f.n} מקרים` : 'אין עדיין מקרים'} · בכל השוק <span class="num">${pct(f.mktTp)}</span> · מודל ${f.modelOk ? '✓' : '✗'} <span class="num">${pct(f.p)}</span> · היסטוריה ${f.statOk ? '✓' : '✗'}</small></div>`).join('')
+    || `<div class="empty">${state.feedTotal ? `היו ${state.feedTotal} הצטלבויות בנר האחרון, אף אחת לא עברה את הסף.` : 'אין הצטלבויות בנר האחרון.'}</div>`;
+  $('feed').insertAdjacentHTML('beforeend', `<div class="note">נקודת איזון: צריך לפגוע ב-TP בערך ב-<span class="num">${pct(be)}</span> מהמקרים כדי לא להפסיד (יעד ${state.cfg.tpAtr} ATR מול סטופ ${state.cfg.slAtr} ATR, אחרי עמלות).</div>`);
+
+  // market-wide odds per indicator
+  const KN = { ut: 'UT Bot', vwap: 'VWAP', ssl: 'SSL', multi: 'שניים ומעלה יחד' }, tg = state.trig || {};
+  $('trig').innerHTML = `<table><tr><th>הצטלבות</th><th>כיוון</th><th>פגע ב-TP</th><th>ממוצע</th><th>מקרים</th></tr>${['ut', 'vwap', 'ssl', 'multi'].flatMap((k) => [1, -1].map((sd) => { const v = tg[k + ':' + sd]; return v ? `<tr><td>${KN[k]}</td><td class="${sd > 0 ? 'up' : 'down'}">${sd > 0 ? 'לונג' : 'שורט'}</td><td class="num ${v.tp >= be ? 'up' : 'down'}">${(v.tp * 100).toFixed(1)}%</td><td class="num ${v.r > 0 ? 'up' : 'down'}">${sgn(v.r, 2)}R</td><td class="num">${v.n.toLocaleString('en')}</td></tr>` : ''; })).join('')}</table>
+    <div class="note" style="margin-top:6px">מה קרה בפועל אחרי כל הצטלבות בכל המטבעות בהיסטוריה שנטענה (כחודשיים), בכניסה בסגירת הנר.</div>`;
+
   // open signals
   $('open').innerHTML = state.open.map((o) => {
     const risk = Math.abs(o.entry - o.sl), r = o.price ? o.side * (o.price - o.entry) / risk : 0;
@@ -230,7 +257,7 @@ function render() {
       <div class="row"><b><span class="num">${o.sym.replace('USDT', '')}</span> · ${sideHe(o.side)}</b><b class="num ${r >= 0 ? 'up' : 'down'}">${sgn(r, 2)}R</b></div>
       <div class="row"><span>כניסה <span class="num">${fmtP(o.entry)}</span></span><span>עכשיו <span class="num">${fmtP(o.price)}</span></span></div>
       <div class="row"><span class="down">סטופ <span class="num">${fmtP(o.sl)}</span></span><span class="up">יעד <span class="num">${fmtP(o.tp)}</span></span></div>
-      <small>${o.reasons.join(' · ')} · ביטחון ${pct(o.p)} · ${timeHe(o.t)}</small></div>`;
+      <small>${o.reasons.join(' · ')}${o.tpProb ? ' · סיכוי ל-TP ' + pct(o.tpProb) : ''} · ${timeHe(o.t)}</small></div>`;
   }).join('') || '<div class="empty">אין כרגע עסקה פתוחה. הבוט מחכה לאיתות שעומד בתנאים.</div>';
 
   // brain
@@ -280,7 +307,7 @@ function connectServer() {
   const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data), s = m.signal;
-    if (m.type === 'signal') alertUser(`כניסה: ${s.sym.replace('USDT', '')} ${sideHe(s.side)}`, `מחיר ${fmtP(s.entry)} · סטופ ${fmtP(s.sl)} · יעד ${fmtP(s.tp)}<br>${s.reasons.join(' · ')} · ביטחון ${pct(s.p)}`, s.side > 0 ? 'long' : 'short', s.sym, s.side > 0 ? [660, 880, 1100] : [880, 660, 520]);
+    if (m.type === 'signal') alertUser(`כניסה: ${s.sym.replace('USDT', '')} ${sideHe(s.side)}`, `מחיר ${fmtP(s.entry)} · סטופ ${fmtP(s.sl)} · יעד ${fmtP(s.tp)}<br>${s.reasons.join(' + ')} · סיכוי ל-TP ${pct(s.tpProb)}`, s.side > 0 ? 'long' : 'short', s.sym, s.side > 0 ? [660, 880, 1100] : [880, 660, 520]);
     if (m.type === 'exit') alertUser(`יציאה: ${s.sym.replace('USDT', '')}`, `${s.reason} · מחיר ${fmtP(s.exit)} · תוצאה ${sgn(s.r, 2)}R`, '', s.sym, [520, 520]);
     if (m.type === 'status' && state) { state.status = m.status; render(); if (m.status.phase === 'live') refresh(); }
     if (m.type !== 'status') { refresh(); if (m.type !== 'scan' ? s.sym === sym : true) loadChart(true); }
@@ -296,7 +323,8 @@ $('soundBtn').onclick = async () => {
 };
 $('q').oninput = render; $('sort').onchange = render;
 $('ivs').onclick = (e) => e.target.dataset.iv && select(sym, e.target.dataset.iv);
-for (const id of ['coins', 'open', 'history']) $(id).onclick = (e) => { const el = e.target.closest('[data-s]'); if (el) select(el.dataset.s, id === 'coins' ? null : state.cfg.tf); };
+document.querySelectorAll('.fbtn').forEach((b) => b.onclick = () => { feedMin = +b.dataset.f; document.querySelectorAll('.fbtn').forEach((x) => x.classList.toggle('on', x === b)); render(); });
+for (const id of ['coins', 'open', 'history', 'feed']) $(id).onclick = (e) => { const el = e.target.closest('[data-s]'); if (el) select(el.dataset.s, id === 'coins' ? null : state.cfg.tf); };
 refresh(); connectServer(); setInterval(refresh, 15000);
 </script>
 </body>

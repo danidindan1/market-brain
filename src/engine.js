@@ -3,11 +3,17 @@
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { computeIndicators, features, btcContext, label, evR, FEATURE_NAMES, NF, HORIZON, WARMUP, SL_ATR, TP_ATR, FEE_ROUNDTRIP } from './indicators.js';
+import { computeIndicators, features, btcContext, label, outcome, crossKinds, evR, FEATURE_NAMES, NF, HORIZON, WARMUP, SL_ATR, TP_ATR, FEE_ROUNDTRIP } from './indicators.js';
 import { Brain } from './model.js';
 import { getSymbols, getKlines, getTickers, pool, INTERVAL_MS } from './bybit.js';
 
 const MAXC = 1500;
+const CROSS_HE = {
+  ut: ['UT Bot התהפך לקנייה', 'UT Bot התהפך למכירה'],
+  vwap: ['חצה את ה-VWAP למעלה', 'חצה את ה-VWAP למטה'],
+  ssl: ['SSL התהפך לירוק', 'SSL התהפך לאדום'],
+};
+const SHRINK = 30; // a coin's own record counts fully only after ~30 crossovers; before that it leans on the market-wide rate
 const tick = () => new Promise((r) => setImmediate(r));
 
 function lowerBound(c, t) {
@@ -23,7 +29,8 @@ export class Engine extends EventEmitter {
       tf: String(cfg.tf || '60'),
       minProb: +cfg.minProb || 0.5,
       minEv: cfg.minEv != null ? +cfg.minEv : 0.03,   // required proven net edge (in R) for that confidence level
-      minTrack: 5000,                                  // graded predictions needed before trusting a level
+      minTrack: 5000,
+      minStatR: 0.05,                                  // crossover type must have averaged at least this net R historically                                  // graded predictions needed before trusting a level
       minTurnover: cfg.minTurnover != null ? +cfg.minTurnover : 2e6,
       maxOpen: +cfg.maxOpen || 8,
       maxCoins: +cfg.maxCoins || 0,
@@ -37,6 +44,9 @@ export class Engine extends EventEmitter {
     this.brain = new Brain(NF);
     this.open = [];
     this.history = [];
+    this.trig = {};       // market-wide record per crossover type: what happened after it
+    this.trigReady = false;
+    this.feed = [];       // crossovers on the last closed bar, with odds and a verdict
     this.status = { phase: 'starting', done: 0, total: 0, lastScan: null, nextScan: null, error: null };
     this.scanning = false;
   }
@@ -109,8 +119,17 @@ export class Engine extends EventEmitter {
         this.status.done = ti + 1;
         if (ti % 25 === 0) { await tick(); if (ti % 200 === 0) this.emit('status'); }
       }
+      // 3) record what happened after every past crossover (TP / SL / neither), per coin and market-wide
+      this.trig = {};
+      for (const coin of this.coins.values()) {
+        coin.trig = {};
+        const ind = inds.get(coin.sym);
+        for (let i = WARMUP; i + HORIZON <= coin.candles.length - 1; i++) this.recordCross(coin, ind, i);
+      }
+      this.trigReady = true;
       for (const coin of this.coins.values()) this.summarize(coin, inds.get(coin.sym));
       inds.clear();
+      this.feed = this.buildFeed();
       this.save();
 
       this.status = { ...this.status, phase: 'live', error: null };
@@ -155,6 +174,7 @@ export class Engine extends EventEmitter {
       if (i < WARMUP) continue;
       const btc = this.btcCtx.get(c[i].t), pr = pend.get(c[i].t);
       pend.delete(c[i].t);
+      if (this.trigReady) this.recordCross(coin, ind, i);
       for (const side of [1, -1]) {
         const y = label(c, i, side, ind.atr[i]);
         if (y != null) this.brain.learn(coin.sym, features(ind, c, i, side, btc), y, pr ? pr[side > 0 ? 0 : 1] : null);
@@ -163,23 +183,68 @@ export class Engine extends EventEmitter {
     coin.nextTrainT = c[i].t;
   }
 
+  // ---------- crossover track record ----------
+  recordCross(coin, ind, i) {
+    for (const side of [1, -1]) {
+      const kinds = crossKinds(ind, i, side);
+      if (!kinds.length) continue;
+      const o = outcome(coin.candles, i, side, ind.atr[i]);
+      if (!o) continue;
+      const keys = kinds.map((k) => `${k}:${side}`);
+      if (kinds.length > 1) keys.push(`multi:${side}`);
+      for (const key of keys) for (const store of [this.trig, (coin.trig ||= {})]) {
+        const s = (store[key] ||= { n: 0, tp: 0, sl: 0, r: 0 });
+        s.n++; s.r += o.r;
+        if (o.res === 'tp') s.tp++; else if (o.res === 'sl') s.sl++;
+      }
+    }
+  }
+
+  // Odds for this crossover type on this coin: its own history, pulled toward the market-wide rate when it is thin.
+  odds(coin, key) {
+    const g = this.trig[key], s = coin.trig?.[key];
+    const gTp = g?.n ? g.tp / g.n : 0.38, gR = g?.n ? g.r / g.n : -0.05, n = s?.n || 0;
+    return {
+      n, coinTp: n ? s.tp / n : null, mktTp: gTp, mktN: g?.n || 0,
+      tp: ((s?.tp || 0) + SHRINK * gTp) / (n + SHRINK),
+      r: ((s?.r || 0) + SHRINK * gR) / (n + SHRINK),
+    };
+  }
+
+  // Every crossover on the last closed bar, with its odds and a verdict: 2 = enter, 1 = borderline, 0 = skip.
+  buildFeed() {
+    const feed = [], now = Date.now();
+    for (const coin of this.coins.values()) {
+      const s = coin.sum;
+      if (!s || s.t + 2 * this.tfMs < now || coin.turnover < this.cfg.minTurnover) continue;
+      for (const [side, p, kinds] of [[1, s.pL, s.kL], [-1, s.pS, s.kS]]) {
+        if (!kinds.length) continue;
+        const o = this.odds(coin, `${kinds.length > 1 ? 'multi' : kinds[0]}:${side}`);
+        const tr = this.brain.track(p);
+        const modelOk = p >= this.cfg.minProb && tr.n >= this.cfg.minTrack && evR(tr.avg) >= this.cfg.minEv;
+        const statOk = o.r >= this.cfg.minStatR;
+        feed.push({
+          sym: coin.sym, side, kinds, reasons: kinds.map((k) => CROSS_HE[k][side > 0 ? 0 : 1]),
+          entry: s.close, sl: s.close - side * SL_ATR * s.atr, tp: s.close + side * TP_ATR * s.atr, barT: s.t,
+          tpProb: o.tp, expR: o.r, n: o.n, coinTp: o.coinTp, mktTp: o.mktTp, p, modelOk, statOk,
+          verdict: modelOk && statOk ? 2 : modelOk || statOk ? 1 : 0,
+        });
+      }
+    }
+    return feed.sort((a, b) => b.verdict - a.verdict || b.tpProb - a.tpProb);
+  }
+
   summarize(coin, ind) {
     const c = coin.candles, i = c.length - 1;
     if (i < WARMUP) { coin.sum = null; return; }
     const btc = this.btcCtx.get(c[i].t) || this.btcLast;
-    const trig = (side) => {
-      const r = [];
-      if (ind.utAge[i] === 0 && ind.utDir[i] === side) r.push(side > 0 ? 'UT Bot התהפך לקנייה' : 'UT Bot התהפך למכירה');
-      if (ind.vwapAge[i] === 0 && ind.vwapSide[i] === side) r.push(side > 0 ? 'חצה את ה-VWAP למעלה' : 'חצה את ה-VWAP למטה');
-      if (ind.sslAge[i] === 0 && ind.sslDir[i] === side) r.push(side > 0 ? 'SSL התהפך לירוק' : 'SSL התהפך לאדום');
-      return r;
-    };
+    const kL = crossKinds(ind, i, 1), kS = crossKinds(ind, i, -1);
     coin.sum = {
       t: c[i].t, close: c[i].c, atr: ind.atr[i],
       pL: this.brain.predict(coin.sym, features(ind, c, i, 1, btc)),
       pS: this.brain.predict(coin.sym, features(ind, c, i, -1, btc)),
       ut: ind.utDir[i], utAge: ind.utAge[i], vw: ind.vwapSide[i], ssl: ind.sslDir[i], rsi: ind.rsi[i],
-      trigL: trig(1), trigS: trig(-1), hi: c[i].h, lo: c[i].l,
+      kL, kS, trigL: kL.map((k) => CROSS_HE[k][0]), trigS: kS.map((k) => CROSS_HE[k][1]), hi: c[i].h, lo: c[i].l,
     };
   }
 
@@ -210,7 +275,6 @@ export class Engine extends EventEmitter {
       const btc = this.coins.get('BTCUSDT');
       await this.refresh(btc);
       this.buildBtcCtx(btc);
-      const candidates = [];
       await pool([...this.coins.values()], 6, async (coin) => {
         try {
           if (coin !== btc) await this.refresh(coin);
@@ -218,21 +282,12 @@ export class Engine extends EventEmitter {
           this.trainCoin(coin, ind);
           this.summarize(coin, ind);
           this.checkExitOnClose(coin);
-          const s = coin.sum;
-          if (!s || s.t + 2 * this.tfMs < Date.now() || coin.turnover < this.cfg.minTurnover) return;
-          for (const [side, p, reasons] of [[1, s.pL, s.trigL], [-1, s.pS, s.trigS]]) {
-            if (!reasons.length || p < this.cfg.minProb) continue;
-            const tr = this.brain.track(p);   // only alert where past predictions at this level really paid
-            if (tr.n < this.cfg.minTrack || evR(tr.avg) < this.cfg.minEv) continue;
-            candidates.push({ coin, side, p, reasons, ev: evR(tr.avg) });
-          }
         } catch (e) { console.error(`scan ${coin.sym}: ${e.message}`); }
       });
-      candidates.sort((a, b) => b.p - a.p);
-      for (const cand of candidates) {
-        if (this.open.length >= this.cfg.maxOpen) break;
-        if (this.open.some((o) => o.sym === cand.coin.sym)) continue;
-        this.openSignal(cand);
+      this.feed = this.buildFeed();
+      for (const f of this.feed) {
+        if (f.verdict < 2 || this.open.length >= this.cfg.maxOpen) break;
+        if (!this.open.some((o) => o.sym === f.sym)) this.openSignal(f);
       }
       this.status.lastScan = Date.now();
       this.save();
@@ -240,13 +295,9 @@ export class Engine extends EventEmitter {
     } finally { this.scanning = false; }
   }
 
-  openSignal({ coin, side, p, reasons, ev }) {
-    const s = coin.sum;
-    const sig = {
-      id: `${coin.sym}-${s.t}`, sym: coin.sym, side, entry: s.close,
-      sl: s.close - side * SL_ATR * s.atr, tp: s.close + side * TP_ATR * s.atr,
-      p, ev, reasons, t: Date.now(), barT: s.t,
-    };
+  openSignal(f) {
+    const { sym, side, p } = f;
+    const sig = { id: `${sym}-${f.barT}`, sym, side, entry: f.entry, sl: f.sl, tp: f.tp, p, tpProb: f.tpProb, expR: f.expR, n: f.n, reasons: f.reasons, t: Date.now(), barT: f.barT };
     this.open.push(sig);
     this.emit('signal', sig);
     console.log(`ENTER ${side > 0 ? 'LONG' : 'SHORT'} ${sig.sym} @${sig.entry} p=${p.toFixed(3)}`);
@@ -311,6 +362,8 @@ export class Engine extends EventEmitter {
       perf: { n: h.length, wins, sumR: h.reduce((a, x) => a + x.r, 0) },
       open: this.open.map((o) => ({ ...o, price: this.coins.get(o.sym)?.price })),
       history: h.slice(0, 60),
+      feed: this.feed.slice(0, 80), feedTotal: this.feed.length,
+      trig: Object.fromEntries(Object.entries(this.trig).map(([k, v]) => [k, { n: v.n, tp: v.tp / v.n, sl: v.sl / v.n, r: v.r / v.n }])),
       coins,
     };
   }
@@ -333,6 +386,8 @@ export class Engine extends EventEmitter {
         out.pS.push(this.brain.predict(sym, features(ind, c, i, -1, btc)));
       } else { out.pL.push(null); out.pS.push(null); }
     }
+    const coin = this.coins.get(sym);
+    out.odds = withProb ? Object.fromEntries(['ut', 'vwap', 'ssl'].flatMap((k) => [1, -1].map((sd) => [`${k}:${sd}`, this.odds(coin, `${k}:${sd}`)]))) : null;
     out.signals = [...this.open, ...this.history].filter((s) => s.sym === sym);
     return out;
   }
