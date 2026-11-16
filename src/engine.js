@@ -222,7 +222,8 @@ export class Engine extends EventEmitter {
         const o = this.odds(coin, `${kinds.length > 1 ? 'multi' : kinds[0]}:${side}`);
         const tr = this.brain.track(p);
         const modelOk = p >= this.cfg.minProb && tr.n >= this.cfg.minTrack && evR(tr.avg) >= this.cfg.minEv;
-        const statOk = o.r >= this.cfg.minStatR;
+        // history must show both a positive average result and a TP hit rate above break-even (~44%)
+        const statOk = o.r >= this.cfg.minStatR && o.tp >= 1.1 / (1 + TP_ATR / SL_ATR);
         feed.push({
           sym: coin.sym, side, kinds, reasons: kinds.map((k) => CROSS_HE[k][side > 0 ? 0 : 1]),
           entry: s.close, sl: s.close - side * SL_ATR * s.atr, tp: s.close + side * TP_ATR * s.atr, barT: s.t,

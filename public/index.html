@@ -2,7 +2,15 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e14">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Market Brain">
 <title>Market Brain</title>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
@@ -52,7 +60,20 @@
   .toast { background: var(--panel2); border: 1px solid var(--line); border-inline-start: 4px solid var(--blue); border-radius: 10px; padding: 10px 14px; min-width: 260px; box-shadow: 0 6px 24px #0008; cursor: pointer; }
   .toast.long { border-inline-start-color: var(--green); } .toast.short { border-inline-start-color: var(--red); }
   .note { color: var(--mute); font-size: 12px; }
-  @media (max-width: 1000px) { main { grid-template-columns: 1fr; grid-auto-rows: auto; overflow-y: auto; } body { height: auto; } #coins { max-height: 260px; } #chart { height: 420px; flex: none; } #coinsPane, #sidePane { border: 0; } }
+  header { padding-top: calc(10px + env(safe-area-inset-top)); }
+  @media (max-width: 1000px) {
+    body { height: auto; }
+    main { display: flex; flex-direction: column; }
+    #center { order: 1; } #sidePane { order: 2; overflow: visible; } #coinsPane { order: 3; }
+    #coinsPane, #sidePane { border: 0; border-top: 1px solid var(--line); }
+    #coins { max-height: 420px; }
+    #chart { height: 52vh; min-height: 300px; flex: none; }
+    header { gap: 8px; padding-inline: 12px; } header h1 { font-size: 16px; } .spacer { display: none; }
+    #soundBtn { margin-inline-start: auto; }
+    #ivs button { padding: 6px 9px; }
+    #sidePane { padding-bottom: env(safe-area-inset-bottom); }
+    #toasts { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); } .toast { min-width: 0; }
+  }
 </style>
 </head>
 <body>
@@ -326,6 +347,7 @@ $('ivs').onclick = (e) => e.target.dataset.iv && select(sym, e.target.dataset.iv
 document.querySelectorAll('.fbtn').forEach((b) => b.onclick = () => { feedMin = +b.dataset.f; document.querySelectorAll('.fbtn').forEach((x) => x.classList.toggle('on', x === b)); render(); });
 for (const id of ['coins', 'open', 'history', 'feed']) $(id).onclick = (e) => { const el = e.target.closest('[data-s]'); if (el) select(el.dataset.s, id === 'coins' ? null : state.cfg.tf); };
 refresh(); connectServer(); setInterval(refresh, 15000);
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('/sw.js').catch(() => {});
 </script>
 </body>
 </html>
