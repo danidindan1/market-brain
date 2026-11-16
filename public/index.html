@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Market Brain</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root { --bg:#0b0e14; --panel:#131824; --panel2:#1a2030; --line:#252c3d; --text:#e6e9f0; --mute:#8b93a7; --green:#22c55e; --red:#ef4444; --amber:#f59e0b; --blue:#60a5fa; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, "Segoe UI", Heebo, Arial, sans-serif; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; }
+  .pill { padding: 3px 10px; border-radius: 99px; background: var(--panel2); color: var(--mute); font-size: 12px; }
+  .pill.live { color: var(--green); } .pill.busy { color: var(--amber); } .pill.err { color: var(--red); }
+  .spacer { flex: 1; }
+  button { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button:hover { border-color: var(--blue); } button.on { background: #1d3557; border-color: var(--blue); }
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr) 340px; }
+  aside { background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  #coinsPane { border-left: 1px solid var(--line); } #sidePane { border-right: 1px solid var(--line); overflow-y: auto; }
+  .tools { padding: 8px; display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
+  input, select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; min-width: 0; }
+  input { flex: 1; }
+  #coins { overflow-y: auto; flex: 1; }
+  .coin { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 7px 10px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .coin:hover, .coin.sel { background: var(--panel2); }
+  .coin b { font-weight: 600; } .coin small { color: var(--mute); }
+  .num { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
+  .up { color: var(--green); } .down { color: var(--red); } .mute { color: var(--mute); }
+  .dots { display: inline-flex; gap: 3px; vertical-align: middle; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mute); } .dot.g { background: var(--green); } .dot.r { background: var(--red); }
+  .conf { font-size: 12px; padding: 1px 7px; border-radius: 6px; background: var(--bg); }
+  #center { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  #chartBar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  #chartBar h2 { margin: 0; font-size: 16px; }
+  #chart { flex: 1; min-height: 260px; direction: ltr; }
+  #read { padding: 8px 12px; border-top: 1px solid var(--line); display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
+  .legend { color: var(--mute); font-size: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-inline-end: 4px; }
+  section { padding: 12px; border-bottom: 1px solid var(--line); }
+  section h3 { margin: 0 0 8px; font-size: 13px; color: var(--mute); font-weight: 600; }
+  .card { background: var(--panel2); border-radius: 10px; padding: 9px 10px; margin-bottom: 8px; border-inline-start: 3px solid var(--mute); cursor: pointer; }
+  .card.long { border-color: var(--green); } .card.short { border-color: var(--red); }
+  .card .row { display: flex; justify-content: space-between; gap: 8px; } .card small { color: var(--mute); display: block; }
+  .empty { color: var(--mute); font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; } td, th { padding: 3px 4px; text-align: start; border-bottom: 1px solid var(--line); } th { color: var(--mute); font-weight: 500; }
+  .bar { height: 6px; border-radius: 3px; background: var(--blue); display: inline-block; vertical-align: middle; }
+  #toasts { position: fixed; bottom: 16px; left: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 9; }
+  .toast { background: var(--panel2); border: 1px solid var(--line); border-inline-start: 4px solid var(--blue); border-radius: 10px; padding: 10px 14px; min-width: 260px; box-shadow: 0 6px 24px #0008; cursor: pointer; }
+  .toast.long { border-inline-start-color: var(--green); } .toast.short { border-inline-start-color: var(--red); }
+  .note { color: var(--mute); font-size: 12px; }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; grid-auto-rows: auto; overflow-y: auto; } body { height: auto; } #coins { max-height: 260px; } #chart { height: 420px; flex: none; } #coinsPane, #sidePane { border: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🧠 Market Brain</h1>
+  <span id="status" class="pill">מתחבר…</span>
+  <span id="scanInfo" class="pill"></span>
+  <span class="spacer"></span>
+  <button id="soundBtn">🔔 הפעל צליל והתראות</button>
+</header>
+<main>
+  <aside id="coinsPane">
+    <div class="tools">
+      <input id="q" placeholder="חיפוש מטבע…" autocomplete="off">
+      <select id="sort" title="מיון">
+        <option value="conf">ביטחון</option><option value="to">נפח</option><option value="chg">שינוי 24ש</option><option value="trig">איתות טרי</option>
+      </select>
+    </div>
+    <div id="coins"></div>
+  </aside>
+
+  <div id="center">
+    <div id="chartBar">
+      <h2 id="symTitle" class="num">BTCUSDT</h2>
+      <span id="symPrice" class="num"></span>
+      <span class="spacer"></span>
+      <span id="ivs"></span>
+    </div>
+    <div id="chart"></div>
+    <div id="read"></div>
+    <div id="read2" class="legend" style="padding:0 12px 8px">
+      <span><i style="background:#f59e0b"></i>VWAP</span>
+      <span><i style="background:#22c55e"></i><i style="background:#ef4444"></i>קו UT Bot</span>
+      <span>▲▼ היפוך UT Bot</span>
+      <span><i style="background:#22c55e88"></i><i style="background:#ef444488"></i>ביטחון המודל ללונג / שורט (בתחתית הגרף)</span>
+    </div>
+  </div>
+
+  <aside id="sidePane">
+    <section><h3>עסקאות פתוחות – הבוט אמר להיכנס</h3><div id="open"></div></section>
+    <section><h3>מה הבוט למד עד עכשיו</h3><div id="brain"></div></section>
+    <section><h3>היסטוריית איתותים</h3><div id="perf" class="note" style="margin-bottom:6px"></div><div id="history"></div></section>
+    <section class="note">הבוט נותן איתותים בלבד ולא מבצע עסקאות. זה כלי עזר ולא ייעוץ השקעות – אין הבטחה לרווח, ואפשר להפסיד כסף.</section>
+  </aside>
+</main>
+<div id="toasts"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const TZ = -new Date().getTimezoneOffset() * 60;
+const IVS = [['5', '5ד'], ['15', '15ד'], ['60', '1ש'], ['240', '4ש'], ['D', 'יומי']];
+let state = null, sym = 'BTCUSDT', iv = null, chartData = null, liveWs = null, priceLines = [], soundOn = false, audio = null;
+
+const fmtP = (p) => p == null ? '–' : p >= 1000 ? p.toLocaleString('en', { maximumFractionDigits: 1 }) : p >= 1 ? p.toFixed(3) : p >= 0.01 ? p.toFixed(5) : p.toPrecision(4);
+const pct = (x) => (x * 100).toFixed(0) + '%';
+const sgn = (x, d = 2) => (x > 0 ? '+' : '') + x.toFixed(d);
+const sideHe = (s) => s > 0 ? 'לונג (קנייה)' : 'שורט (מכירה)';
+const timeHe = (t) => new Date(t).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const ivHe = (v) => (IVS.find((x) => x[0] === v) || [, v])[1];
+
+// ---------- chart ----------
+const chart = LightweightCharts.createChart($('chart'), {
+  layout: { background: { color: '#0b0e14' }, textColor: '#8b93a7' },
+  grid: { vertLines: { color: '#161b27' }, horzLines: { color: '#161b27' } },
+  timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#252c3d' },
+  rightPriceScale: { borderColor: '#252c3d', scaleMargins: { top: 0.06, bottom: 0.24 } },
+  crosshair: { mode: 0 }, autoSize: true,
+});
+const candles = chart.addCandlestickSeries({ upColor: '#22c55e', downColor: '#ef4444', wickUpColor: '#22c55e', wickDownColor: '#ef4444', borderVisible: false });
+const vwapS = chart.addLineSeries({ color: '#f59e0b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+const utS = chart.addLineSeries({ lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+const probOpts = { priceScaleId: 'prob', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, priceFormat: { type: 'percent' } };
+const pLS = chart.addLineSeries({ ...probOpts, color: '#22c55e99' });
+const pSS = chart.addLineSeries({ ...probOpts, color: '#ef444499' });
+chart.priceScale('prob').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 }, visible: false });
+
+async function loadChart(keepView) {
+  const want = sym + '|' + iv;
+  let d;
+  try { d = await (await fetch(`/api/chart?symbol=${sym}&interval=${iv}`)).json(); } catch { return; }
+  if (d.error || want !== sym + '|' + iv) return;
+  chartData = d;
+  const last = d.candles.at(-1)?.[4] || 1;
+  const prec = last >= 1000 ? 1 : last >= 10 ? 2 : last >= 1 ? 4 : last >= 0.01 ? 5 : last >= 0.0001 ? 7 : 9;
+  candles.applyOptions({ priceFormat: { type: 'price', precision: prec, minMove: +(10 ** -prec).toFixed(prec) } });
+  const T = (t) => t / 1000 + TZ;
+  candles.setData(d.candles.map((k) => ({ time: T(k[0]), open: k[1], high: k[2], low: k[3], close: k[4] })));
+  vwapS.setData(d.candles.map((k, i) => ({ time: T(k[0]), value: d.vwap[i] })));
+  utS.setData(d.candles.map((k, i) => ({ time: T(k[0]), value: d.ut[i], color: d.utDir[i] > 0 ? '#22c55e' : '#ef4444' })));
+  const pr = (arr) => d.candles.map((k, i) => arr[i] == null ? null : { time: T(k[0]), value: arr[i] * 100 }).filter(Boolean);
+  pLS.setData(pr(d.pL)); pSS.setData(pr(d.pS));
+
+  const first = d.candles[0][0], ivMs = d.candles.length > 1 ? d.candles[1][0] - d.candles[0][0] : 1;
+  const snap = (t) => T(first + Math.floor((t - first) / ivMs) * ivMs);
+  const marks = d.flips.map(([t, dir]) => ({ time: T(t), position: dir > 0 ? 'belowBar' : 'aboveBar', color: dir > 0 ? '#22c55e88' : '#ef444488', shape: dir > 0 ? 'arrowUp' : 'arrowDown', size: 0.6 }));
+  for (const s of d.signals) {
+    if (s.t >= first) marks.push({ time: snap(s.t), position: s.side > 0 ? 'belowBar' : 'aboveBar', color: s.side > 0 ? '#22c55e' : '#ef4444', shape: s.side > 0 ? 'arrowUp' : 'arrowDown', size: 2, text: s.side > 0 ? 'כניסה לונג' : 'כניסה שורט' });
+    if (s.exitT && s.exitT >= first) marks.push({ time: snap(s.exitT), position: 'aboveBar', color: '#60a5fa', shape: 'circle', size: 1, text: 'יציאה ' + sgn(s.r, 1) + 'R' });
+  }
+  marks.sort((a, b) => a.time - b.time);
+  candles.setMarkers(marks);
+
+  priceLines.forEach((l) => candles.removePriceLine(l)); priceLines = [];
+  const o = d.signals.find((s) => !s.exitT);
+  if (o) for (const [price, title, color] of [[o.entry, 'כניסה', '#60a5fa'], [o.sl, 'סטופ', '#ef4444'], [o.tp, 'יעד', '#22c55e']])
+    priceLines.push(candles.createPriceLine({ price, title, color, lineWidth: 1, lineStyle: 2 }));
+  if (!keepView) chart.timeScale().setVisibleLogicalRange({ from: d.candles.length - 160, to: d.candles.length + 6 });
+  connectLive();
+}
+
+function connectLive() {
+  const key = sym + '|' + iv;
+  if (liveWs && liveWs.key === key && liveWs.readyState <= 1) return;
+  if (liveWs) { liveWs.onclose = null; liveWs.close(); }
+  const ws = liveWs = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+  ws.key = key;
+  ws.onopen = () => { ws.send(JSON.stringify({ op: 'subscribe', args: [`kline.${iv}.${sym}`] })); ws.ping = setInterval(() => ws.readyState === 1 && ws.send('{"op":"ping"}'), 20000); };
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (!m.data || ws.key !== sym + '|' + iv) return;
+    for (const k of m.data) {
+      candles.update({ time: k.start / 1000 + TZ, open: +k.open, high: +k.high, low: +k.low, close: +k.close });
+      $('symPrice').textContent = fmtP(+k.close);
+      if (k.confirm) setTimeout(() => loadChart(true), 2500);
+    }
+  };
+  ws.onclose = () => { clearInterval(ws.ping); if (ws.key === sym + '|' + iv) setTimeout(connectLive, 3000); };
+}
+
+function select(s, interval) {
+  sym = s; if (interval) iv = interval;
+  $('symTitle').textContent = s;
+  document.querySelectorAll('#ivs button').forEach((b) => b.classList.toggle('on', b.dataset.iv === iv));
+  loadChart(false); render();
+}
+
+// ---------- panels ----------
+const best = (c) => c.pL == null ? null : c.pL >= c.pS ? [1, c.pL] : [-1, c.pS];
+function render() {
+  if (!state) return;
+  const st = state.status, live = st.phase === 'live';
+  const phase = { starting: 'מתחיל…', history: `מוריד היסטוריה ${st.done}/${st.total}`, learning: `לומד מההיסטוריה ${Math.round(100 * st.done / (st.total || 1))}%`, live: 'פועל ולומד', error: 'שגיאה: ' + st.error }[st.phase];
+  $('status').textContent = phase; $('status').className = 'pill ' + (live ? 'live' : st.phase === 'error' ? 'err' : 'busy');
+  $('scanInfo').textContent = live ? `${state.coins.length} מטבעות · נרות ${ivHe(state.cfg.tf)} · סריקה הבאה ${st.nextScan ? new Date(st.nextScan).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '–'}` : '';
+
+  // coins
+  const q = $('q').value.trim().toUpperCase(), sort = $('sort').value;
+  let list = state.coins.filter((c) => !q || c.s.includes(q));
+  const key = { conf: (c) => best(c)?.[1] ?? -1, to: (c) => c.to || 0, chg: (c) => c.chg ?? -999, trig: (c) => ((c.tL?.length || 0) + (c.tS?.length || 0)) * 10 + (best(c)?.[1] ?? 0) }[sort];
+  list.sort((a, b) => key(b) - key(a));
+  const dot = (v) => `<span class="dot ${v > 0 ? 'g' : v < 0 ? 'r' : ''}"></span>`;
+  $('coins').innerHTML = list.slice(0, 250).map((c) => {
+    const b = best(c), trig = c.tL?.length ? 1 : c.tS?.length ? -1 : 0;
+    return `<div class="coin ${c.s === sym ? 'sel' : ''}" data-s="${c.s}">
+      <span><b class="num">${c.s.replace('USDT', '')}</b> ${trig ? `<span class="${trig > 0 ? 'up' : 'down'}">●</span>` : ''}</span>
+      <span class="num">${fmtP(c.price)}</span>
+      <small><span class="dots" title="UT Bot · VWAP · SSL">${dot(c.ut)}${dot(c.vw)}${dot(c.ssl)}</span> <span class="num ${c.chg >= 0 ? 'up' : 'down'}">${c.chg == null ? '' : sgn(c.chg, 1) + '%'}</span></small>
+      <span class="conf num ${b ? (b[0] > 0 ? 'up' : 'down') : 'mute'}">${b ? (b[0] > 0 ? 'L ' : 'S ') + pct(b[1]) : '–'}</span>
+    </div>`;
+  }).join('') || '<div class="empty" style="padding:12px">אין מטבעות</div>';
+
+  // selected coin readout
+  const c = state.coins.find((x) => x.s === sym);
+  if (c && c.pL != null) {
+    const tag = (v, a, b) => `<b class="${v > 0 ? 'up' : 'down'}">${v > 0 ? a : b}</b>`;
+    const trig = [...(c.tL || []), ...(c.tS || [])];
+    $('read').innerHTML = `<span>UT Bot: ${tag(c.ut, 'קנייה', 'מכירה')}</span><span>VWAP: ${tag(c.vw, 'מעל', 'מתחת')}</span><span>SSL: ${tag(c.ssl, 'ירוק', 'אדום')}</span>
+      <span>RSI: <b class="num">${c.rsi.toFixed(0)}</b></span><span>ביטחון ללונג: <b class="num up">${pct(c.pL)}</b></span><span>ביטחון לשורט: <b class="num down">${pct(c.pS)}</b></span>
+      <span class="mute">${trig.length ? 'טריגר טרי: ' + trig.join(' · ') : 'אין טריגר טרי בנר האחרון'} (לפי נרות ${ivHe(state.cfg.tf)})</span>`;
+  } else $('read').innerHTML = '<span class="mute">אין עדיין מספיק נתונים למטבע הזה</span>';
+
+  // open signals
+  $('open').innerHTML = state.open.map((o) => {
+    const risk = Math.abs(o.entry - o.sl), r = o.price ? o.side * (o.price - o.entry) / risk : 0;
+    return `<div class="card ${o.side > 0 ? 'long' : 'short'}" data-s="${o.sym}">
+      <div class="row"><b><span class="num">${o.sym.replace('USDT', '')}</span> · ${sideHe(o.side)}</b><b class="num ${r >= 0 ? 'up' : 'down'}">${sgn(r, 2)}R</b></div>
+      <div class="row"><span>כניסה <span class="num">${fmtP(o.entry)}</span></span><span>עכשיו <span class="num">${fmtP(o.price)}</span></span></div>
+      <div class="row"><span class="down">סטופ <span class="num">${fmtP(o.sl)}</span></span><span class="up">יעד <span class="num">${fmtP(o.tp)}</span></span></div>
+      <small>${o.reasons.join(' · ')} · ביטחון ${pct(o.p)} · ${timeHe(o.t)}</small></div>`;
+  }).join('') || '<div class="empty">אין כרגע עסקה פתוחה. הבוט מחכה לאיתות שעומד בתנאים.</div>';
+
+  // brain
+  const br = state.brain, mx = Math.max(...br.weights.map((w) => Math.abs(w.w)), 1e-9), k = 1 + state.cfg.tpAtr / state.cfg.slAtr;
+  $('brain').innerHTML = `<div style="margin-bottom:6px">למד מ-<b class="num">${br.samples.toLocaleString('en')}</b> מצבי שוק שהסתיימו, וממשיך ללמוד מכל נר שנסגר.</div>
+    <table><tr><th>רמת ביטחון</th><th>תחזיות</th><th>תוצאה בפועל (אחרי עמלות)</th></tr>
+    ${br.buckets.filter((b) => b.lo >= 0.4).map((b) => { const ev = b.avg == null ? null : k * b.avg - 1; return `<tr><td class="num">${pct(b.lo)}–${pct(b.hi)}</td><td class="num">${b.n.toLocaleString('en')}</td><td class="num ${ev == null ? 'mute' : ev > 0 ? 'up' : 'down'}">${ev == null ? '–' : sgn(ev, 2) + 'R לעסקה'}</td></tr>`; }).join('')}</table>
+    <div class="note" style="margin:6px 0 10px">הטבלה בודקת תחזיות שהבוט נתן לפני שידע מה יקרה. איתות כניסה יוצא רק ברמת ביטחון של ${pct(state.cfg.minProb)} ומעלה, שהוכיחה בפועל לפחות ${sgn(state.cfg.minEv, 2)}R לעסקה.</div>
+    <table><tr><th>מה הכי משפיע על ההחלטה</th><th></th></tr>
+    ${br.weights.slice(0, 8).map((w) => `<tr><td>${w.name}</td><td style="width:42%"><span class="bar" style="width:${Math.round(100 * Math.abs(w.w) / mx)}%;background:${w.w > 0 ? 'var(--green)' : 'var(--red)'}"></span></td></tr>`).join('')}</table>
+    <div class="note" style="margin-top:6px">ירוק: מחזק כניסה בכיוון האינדיקטור. אדום: הבוט למד שזה דווקא סימן נגד.</div>`;
+
+  // history
+  const p = state.perf;
+  $('perf').textContent = p.n ? `${p.n} איתותים נסגרו · ${p.wins} ברווח (${Math.round(100 * p.wins / p.n)}%) · סה״כ ${sgn(p.sumR, 1)}R` : '';
+  $('history').innerHTML = state.history.map((h) => `<div class="card ${h.side > 0 ? 'long' : 'short'}" data-s="${h.sym}">
+      <div class="row"><b><span class="num">${h.sym.replace('USDT', '')}</span> · ${h.side > 0 ? 'לונג' : 'שורט'}</b><b class="num ${h.r > 0 ? 'up' : 'down'}">${sgn(h.r, 2)}R</b></div>
+      <small>${h.reason} · <span class="num">${fmtP(h.entry)} → ${fmtP(h.exit)}</span> · ${timeHe(h.exitT)}</small></div>`).join('') || '<div class="empty">עוד לא נסגרו איתותים.</div>';
+}
+
+async function refresh() {
+  try { state = await (await fetch('/api/state')).json(); } catch { return; }
+  if (!iv) { iv = state.cfg.tf; $('ivs').innerHTML = IVS.map(([v, l]) => `<button data-iv="${v}">${l}</button>`).join(' '); select(sym); }
+  render();
+}
+
+// ---------- alerts ----------
+function beep(freqs) {
+  if (!soundOn) return;
+  audio ||= new AudioContext();
+  freqs.forEach((f, i) => {
+    const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + i * 0.2;
+    o.frequency.value = f; o.connect(g); g.connect(audio.destination);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o.start(t); o.stop(t + 0.2);
+  });
+}
+function alertUser(title, body, cls, s, tones) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + cls; el.innerHTML = `<b>${title}</b><div>${body}</div>`;
+  el.onclick = () => { select(s, state.cfg.tf); el.remove(); };
+  $('toasts').append(el); setTimeout(() => el.remove(), 60000);
+  beep(tones);
+  if (soundOn && 'Notification' in window && Notification.permission === 'granted') new Notification(title, { body: body.replace(/<[^>]+>/g, '') });
+}
+function connectServer() {
+  const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data), s = m.signal;
+    if (m.type === 'signal') alertUser(`כניסה: ${s.sym.replace('USDT', '')} ${sideHe(s.side)}`, `מחיר ${fmtP(s.entry)} · סטופ ${fmtP(s.sl)} · יעד ${fmtP(s.tp)}<br>${s.reasons.join(' · ')} · ביטחון ${pct(s.p)}`, s.side > 0 ? 'long' : 'short', s.sym, s.side > 0 ? [660, 880, 1100] : [880, 660, 520]);
+    if (m.type === 'exit') alertUser(`יציאה: ${s.sym.replace('USDT', '')}`, `${s.reason} · מחיר ${fmtP(s.exit)} · תוצאה ${sgn(s.r, 2)}R`, '', s.sym, [520, 520]);
+    if (m.type === 'status' && state) { state.status = m.status; render(); if (m.status.phase === 'live') refresh(); }
+    if (m.type !== 'status') { refresh(); if (m.type !== 'scan' ? s.sym === sym : true) loadChart(true); }
+  };
+  ws.onclose = () => setTimeout(connectServer, 3000);
+}
+
+$('soundBtn').onclick = async () => {
+  soundOn = !soundOn;
+  if (soundOn) { audio ||= new AudioContext(); audio.resume(); beep([880]); if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission(); }
+  $('soundBtn').textContent = soundOn ? '🔔 צליל והתראות פועלים' : '🔕 הפעל צליל והתראות';
+  $('soundBtn').classList.toggle('on', soundOn);
+};
+$('q').oninput = render; $('sort').onchange = render;
+$('ivs').onclick = (e) => e.target.dataset.iv && select(sym, e.target.dataset.iv);
+for (const id of ['coins', 'open', 'history']) $(id).onclick = (e) => { const el = e.target.closest('[data-s]'); if (el) select(el.dataset.s, id === 'coins' ? null : state.cfg.tf); };
+refresh(); connectServer(); setInterval(refresh, 15000);
+</script>
+</body>
+</html>

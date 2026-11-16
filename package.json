@@ -1,0 +1,9 @@
+{
+  "name": "market-brain",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": { "start": "node --max-old-space-size=320 server.js" },
+  "dependencies": { "express": "^4.21.2", "ws": "^8.18.0" }
+}

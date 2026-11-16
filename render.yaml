@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: market-brain
+    runtime: node
+    region: frankfurt        # Bybit blocks US IP addresses, so keep this outside the US
+    plan: starter            # the free plan sleeps after 15 idle minutes, which stops the bot
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: TF
+        value: "60"
