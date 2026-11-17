@@ -159,6 +159,8 @@
   </div>
 
   <aside id="sidePane">
+    <details class="sec" open><summary>מתגבש עכשיו – בנר שעוד לא נסגר<span class="cnt num" id="liveCnt"></span></summary><div class="body">
+      <div id="liveFeed"></div></div></details>
     <details class="sec" open><summary>הצטלבויות בנר האחרון – להיכנס או לא?<span class="cnt num" id="feedCnt"></span></summary><div class="body">
       <div class="tools" style="padding:0 0 8px;border:0"><button data-f="1" class="fbtn on">כדאי + גבולי</button><button data-f="0" class="fbtn">הכול</button></div>
       <div id="feed"></div></div></details>
@@ -263,7 +265,9 @@ chart.subscribeCrosshairMove((p) => {
   if (i < 0) showPower(chartData.bv.at(-1)); else showPower(chartData.bv[i], chartData.candles[i][0]);
 });
 
+let lastChartT = 0;
 async function loadChart(keepView) {
+  lastChartT = Date.now();
   const want = sym + '|' + iv;
   let d;
   try { d = await (await fetch(`/api/chart?symbol=${sym}&interval=${iv}`)).json(); } catch { return; }
@@ -330,7 +334,8 @@ function render() {
   const st = state.status, live = st.phase === 'live';
   const phase = { starting: 'מתחיל…', history: `מוריד היסטוריה ${st.done}/${st.total}`, learning: `לומד מההיסטוריה ${Math.round(100 * st.done / (st.total || 1))}%`, live: 'פועל ולומד', error: 'שגיאה: ' + st.error }[st.phase];
   $('status').textContent = phase; $('status').className = 'pill ' + (live ? 'live' : st.phase === 'error' ? 'err' : 'busy');
-  $('scanInfo').textContent = live ? `${state.coins.length} מטבעות · נרות ${ivHe(state.cfg.tf)} · סריקה הבאה ${st.nextScan ? new Date(st.nextScan).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '–'}` : '';
+  const lvT = state.live?.t, lvAge = lvT ? Math.max(0, Math.round((Date.now() - lvT) / 1000)) : null;
+  $('scanInfo').textContent = live ? `${state.coins.length} מטבעות · נרות ${ivHe(state.cfg.tf)} · ${lvAge == null ? 'סריקה חיה מתחילה…' : `סריקה חיה לפני ${lvAge} שנ׳`} · סגירת נר ${st.nextScan ? new Date(st.nextScan).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '–'}` : '';
 
   // coins
   const q = $('q').value.trim().toUpperCase(), sort = $('sort').value;
@@ -355,24 +360,29 @@ function render() {
     const trig = [...(c.tL || []), ...(c.tS || [])];
     $('read').innerHTML = tile('UT Bot', tag(c.ut, 'קנייה', 'מכירה')) + tile('VWAP', tag(c.vw, 'מעל', 'מתחת')) + tile('SSL', tag(c.ssl, 'ירוק', 'אדום')) + tile('Buy Sell Signal', tag(c.bs, 'קנייה', 'מכירה')) + tile('Buy Sell Volume', tag(c.bv, 'קונים', 'מוכרים'))
       + tile('RSI', `<b class="num">${c.rsi.toFixed(0)}</b>`) + tile('ביטחון ללונג', `<b class="num up">${pct(c.pL)}</b>`) + tile('ביטחון לשורט', `<b class="num down">${pct(c.pS)}</b>`)
-      + `<span class="mute wide">${trig.length ? 'טריגר טרי: ' + trig.join(' · ') : 'אין טריגר טרי בנר האחרון'} (לפי נרות ${ivHe(state.cfg.tf)})</span>`;
+      + `<span class="mute wide">${trig.length ? 'טריגר טרי: ' + trig.join(' · ') : 'אין טריגר טרי בנר האחרון'} (לפי נרות ${ivHe(state.cfg.tf)}${c.lv ? ' · המצב למעלה חי, מהנר שמתגבש' : ''})</span>`;
   } else $('read').innerHTML = '<span class="mute wide">אין עדיין מספיק נתונים למטבע הזה</span>';
 
   // crossover feed
   const VERD = ['לא להיכנס', 'גבולי', 'כדאי להיכנס'], be = breakEven();
   const fl = (state.feed || []).filter((f) => f.verdict >= feedMin);
-  $('feed').innerHTML = fl.slice(0, 40).map((f) => `<div class="card ${f.side > 0 ? 'long' : 'short'}" data-s="${f.sym}">
-      <div class="row"><b><span class="num">${f.sym.replace('USDT', '')}</span> · ${f.side > 0 ? 'לונג' : 'שורט'}</b><span class="badge v${f.verdict}">${VERD[f.verdict]}</span></div>
+  const card = (f) => `<div class="card ${f.side > 0 ? 'long' : 'short'}" data-s="${f.sym}">
+      <div class="row"><b><span class="num">${f.sym.replace('USDT', '')}</span> · ${f.side > 0 ? 'לונג' : 'שורט'}</b><span class="badge v${f.verdict}">${f.live ? 'אם ייסגר כך: ' : ''}${VERD[f.verdict]}</span></div>
       <div class="row"><span>${f.reasons.join(' + ')}</span></div>
       <div class="row"><span>סיכוי ל-TP: <b class="num ${f.tpProb >= be ? 'up' : 'down'}">${pct(f.tpProb)}</b></span><span class="mute">צפי <span class="num">${sgn(f.expR, 2)}R</span></span></div>
       <div class="row"><span>כניסה <span class="num">${fmtP(f.entry)}</span></span><span class="down">סטופ <span class="num">${fmtP(f.sl)}</span></span><span class="up">יעד <span class="num">${fmtP(f.tp)}</span></span></div>
-      <small>במטבע הזה: ${f.n ? `<span class="num">${pct(f.coinTp)}</span> מתוך ${f.n} מקרים` : 'אין עדיין מקרים'} · בכל השוק <span class="num">${pct(f.mktTp)}</span> · מודל ${f.modelOk ? '✓' : '✗'} <span class="num">${pct(f.p)}</span> · היסטוריה ${f.statOk ? '✓' : '✗'}</small></div>`).join('')
+      <small>במטבע הזה: ${f.n ? `<span class="num">${pct(f.coinTp)}</span> מתוך ${f.n} מקרים` : 'אין עדיין מקרים'} · בכל השוק <span class="num">${pct(f.mktTp)}</span> · מודל ${f.modelOk ? '✓' : '✗'} <span class="num">${pct(f.p)}</span> · היסטוריה ${f.statOk ? '✓' : '✗'}</small></div>`;
+  const lf = (state.live?.feed || []).filter((f) => f.verdict >= feedMin), lGood = (state.live?.feed || []).filter((f) => f.verdict >= 1).length;
+  $('liveCnt').textContent = state.live?.t ? `${lGood} מתוך ${state.live.total}` : '';
+  $('liveFeed').innerHTML = (lf.slice(0, 40).map(card).join('') || `<div class="empty">${!state.live?.t ? 'הסריקה החיה מתחילה…' : state.live.total ? `${state.live.total} הצטלבויות מתגבשות כרגע, אף אחת לא עוברת את הסף.` : 'אין כרגע הצטלבות שמתגבשת.'}</div>`)
+    + '<div class="note">תצוגה מוקדמת, מתעדכנת כל הזמן. עד סגירת הנר הצטלבות יכולה להתבטל, ולכן איתות כניסה רשמי יוצא רק בסגירה.</div>';
+  $('feed').innerHTML = fl.slice(0, 40).map(card).join('')
     || `<div class="empty">${state.feedTotal ? `היו ${state.feedTotal} הצטלבויות בנר האחרון, אף אחת לא עברה את הסף.` : 'אין הצטלבויות בנר האחרון.'}</div>`;
   $('feed').insertAdjacentHTML('beforeend', `<div class="note">נקודת איזון: צריך לפגוע ב-TP בערך ב-<span class="num">${pct(be)}</span> מהמקרים כדי לא להפסיד (יעד ${state.cfg.tpAtr} ATR מול סטופ ${state.cfg.slAtr} ATR, אחרי עמלות).</div>`);
 
   const nGood = (state.feed || []).filter((f) => f.verdict >= 1).length;
   $('feedCnt').textContent = `${nGood} מתוך ${state.feedTotal || 0}`; $('openCnt').textContent = state.open.length || '';
-  $('tabCnt').textContent = nGood + state.open.length || '';
+  $('tabCnt').textContent = nGood + lGood + state.open.length || '';
   $('brainCnt').textContent = state.brain.samples.toLocaleString('en');
 
   // market-wide odds per indicator
@@ -438,6 +448,7 @@ function connectServer() {
   const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data), s = m.signal;
+    if (m.type === 'live') { refresh(); if (Date.now() - lastChartT > 30000) loadChart(true); return; }
     if (m.type === 'signal') alertUser(`כניסה: ${s.sym.replace('USDT', '')} ${sideHe(s.side)}`, `מחיר ${fmtP(s.entry)} · סטופ ${fmtP(s.sl)} · יעד ${fmtP(s.tp)}<br>${s.reasons.join(' + ')} · סיכוי ל-TP ${pct(s.tpProb)}`, s.side > 0 ? 'long' : 'short', s.sym, s.side > 0 ? [660, 880, 1100] : [880, 660, 520]);
     if (m.type === 'exit') alertUser(`יציאה: ${s.sym.replace('USDT', '')}`, `${s.reason} · מחיר ${fmtP(s.exit)} · תוצאה ${sgn(s.r, 2)}R`, '', s.sym, [520, 520]);
     if (m.type === 'status' && state) { state.status = m.status; render(); if (m.status.phase === 'live') refresh(); }
@@ -457,7 +468,7 @@ $('ivs').onclick = (e) => e.target.dataset.iv && select(sym, e.target.dataset.iv
 document.querySelectorAll('.fbtn').forEach((b) => b.onclick = () => { feedMin = +b.dataset.f; document.querySelectorAll('.fbtn').forEach((x) => x.classList.toggle('on', x === b)); render(); });
 const setTab = (t) => { document.body.dataset.tab = t; document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); };
 $('tabs').onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.dataset.tab); };
-for (const id of ['coins', 'open', 'history', 'feed']) $(id).onclick = (e) => { const el = e.target.closest('[data-s]'); if (el) { select(el.dataset.s, id === 'coins' ? null : state.cfg.tf); setTab('chart'); } };
+for (const id of ['coins', 'open', 'history', 'feed', 'liveFeed']) $(id).onclick = (e) => { const el = e.target.closest('[data-s]'); if (el) { select(el.dataset.s, id === 'coins' ? null : state.cfg.tf); setTab('chart'); } };
 refresh(); connectServer(); setInterval(refresh, 15000);
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('/sw.js').catch(() => {});
 </script>

@@ -34,6 +34,7 @@ const broadcast = (msg) => {
 engine.on('signal', (signal) => broadcast({ type: 'signal', signal }));
 engine.on('exit', (signal) => broadcast({ type: 'exit', signal }));
 engine.on('scan', () => broadcast({ type: 'scan' }));
+engine.on('live', () => broadcast({ type: 'live' }));
 engine.on('status', () => broadcast({ type: 'status', status: engine.status }));
 
 const port = process.env.PORT || 4600;

@@ -49,6 +49,8 @@ export class Engine extends EventEmitter {
     this.trig = {};       // market-wide record per crossover type: what happened after it
     this.trigReady = false;
     this.feed = [];       // crossovers on the last closed bar, with odds and a verdict
+    this.liveFeed = [];   // the same, for the bar that is still forming (preview only, never opens a signal)
+    this.liveT = null;
     this.status = { phase: 'starting', done: 0, total: 0, lastScan: null, nextScan: null, error: null };
     this.scanning = false;
   }
@@ -140,6 +142,7 @@ export class Engine extends EventEmitter {
       console.log(`live: ${this.coins.size} coins, ${this.brain.n} samples learned`);
       this.schedule();
       this.tickerLoop();
+      this.liveLoop();
     } catch (e) {
       console.error('start failed:', e);
       this.status = { ...this.status, phase: 'error', error: e.message };
@@ -215,10 +218,10 @@ export class Engine extends EventEmitter {
   }
 
   // Every crossover on the last closed bar, with its odds and a verdict: 2 = enter, 1 = borderline, 0 = skip.
-  buildFeed() {
+  buildFeed(src = 'sum') {
     const feed = [], now = Date.now();
     for (const coin of this.coins.values()) {
-      const s = coin.sum;
+      const s = coin[src];
       if (!s || s.t + 2 * this.tfMs < now || coin.turnover < this.cfg.minTurnover) continue;
       for (const [side, p, kinds] of [[1, s.pL, s.kL], [-1, s.pS, s.kS]]) {
         if (!kinds.length) continue;
@@ -240,16 +243,55 @@ export class Engine extends EventEmitter {
 
   summarize(coin, ind) {
     const c = coin.candles, i = c.length - 1;
-    if (i < WARMUP) { coin.sum = null; return; }
-    const btc = this.btcCtx.get(c[i].t) || this.btcLast;
+    coin.sum = i < WARMUP ? null : this.snapshot(coin, ind, c, i, this.btcCtx.get(c[i].t) || this.btcLast);
+  }
+
+  // Indicator states, model confidence and fresh crossovers for bar i of candle list c.
+  snapshot(coin, ind, c, i, btc) {
     const kL = crossKinds(ind, i, 1), kS = crossKinds(ind, i, -1);
-    coin.sum = {
+    return {
       t: c[i].t, close: c[i].c, atr: ind.atr[i],
       pL: this.brain.predict(coin.sym, features(ind, c, i, 1, btc)),
       pS: this.brain.predict(coin.sym, features(ind, c, i, -1, btc)),
       ut: ind.utDir[i], utAge: ind.utAge[i], vw: ind.vwapSide[i], ssl: ind.sslDir[i], bs: ind.bsDir[i], bv: ind.bvDir[i], rsi: ind.rsi[i],
       kL, kS, trigL: kL.map((k) => CROSS_HE[k][0]), trigS: kS.map((k) => CROSS_HE[k][1]), hi: c[i].h, lo: c[i].l,
     };
+  }
+
+  // ---------- live preview ----------
+  // Between the scheduled scans, keep re-reading the bar that is still forming for every coin that can
+  // alert, so the dashboard shows crossovers as they take shape. This is a preview only: a forming bar
+  // can still change, so nothing is learned from it and no signal is opened before the bar closes.
+  async liveLoop() {
+    try { if (this.status.phase === 'live' && !this.scanning) await this.liveScan(); } catch (e) { console.error('live scan:', e.message); }
+    setTimeout(() => this.liveLoop(), 15000);
+  }
+
+  async liveCalc(coin) {
+    const last = coin.candles.at(-1);
+    if (!last || coin.candles.length <= WARMUP) return null;
+    const k = (await getKlines(coin.sym, this.cfg.tf, 2)).at(-1);
+    if (!k || k.t !== last.t + this.tfMs) return null;   // not the bar right after our last closed one: leave it to the scan
+    const c = coin.candles.concat(k);
+    return { c, ind: computeIndicators(c), i: c.length - 1 };
+  }
+
+  async liveScan() {
+    const btc = this.coins.get('BTCUSDT');
+    const b = await this.liveCalc(btc);
+    const btcNow = b ? btcContext(b.ind, b.c, b.i) : this.btcLast;
+    const list = [...this.coins.values()].filter((c) => c === btc || c.turnover >= this.cfg.minTurnover || this.open.some((o) => o.sym === c.sym));
+    await pool(list, 6, async (coin) => {
+      if (this.scanning) return;
+      try {
+        const r = coin === btc ? b : await this.liveCalc(coin);
+        if (!this.scanning) coin.live = r ? this.snapshot(coin, r.ind, r.c, r.i, btcNow) : null;
+      } catch { /* transient: keep the previous preview */ }
+    });
+    if (this.scanning) return;
+    this.liveFeed = this.buildFeed('live').map((f) => ({ ...f, live: true }));
+    this.liveT = Date.now();
+    this.emit('live');
   }
 
   // ---------- live loop ----------
@@ -289,6 +331,8 @@ export class Engine extends EventEmitter {
         } catch (e) { console.error(`scan ${coin.sym}: ${e.message}`); }
       });
       this.feed = this.buildFeed();
+      for (const coin of this.coins.values()) coin.live = null;   // the bar they described has just closed
+      this.liveFeed = [];
       for (const f of this.feed) {
         if (f.verdict < 2 || this.open.length >= this.cfg.maxOpen) break;
         if (!this.open.some((o) => o.sym === f.sym)) this.openSignal(f);
@@ -351,10 +395,10 @@ export class Engine extends EventEmitter {
   getState() {
     const coins = [];
     for (const c of this.coins.values()) {
-      const s = c.sum;
+      const s = c.live || c.sum;   // indicator states follow the forming bar when a live preview exists
       coins.push({
         s: c.sym, price: c.price, chg: c.chg, to: c.turnover,
-        ...(s ? { pL: s.pL, pS: s.pS, ut: s.ut, vw: s.vw, ssl: s.ssl, bs: s.bs, bv: s.bv, rsi: s.rsi, tL: s.trigL, tS: s.trigS } : {}),
+        ...(s ? { pL: s.pL, pS: s.pS, ut: s.ut, vw: s.vw, ssl: s.ssl, bs: s.bs, bv: s.bv, rsi: s.rsi, tL: c.sum?.trigL, tS: c.sum?.trigS, lv: c.live ? 1 : 0 } : {}),
       });
     }
     const h = this.history, wins = h.filter((x) => x.r > 0).length;
@@ -367,6 +411,7 @@ export class Engine extends EventEmitter {
       open: this.open.map((o) => ({ ...o, price: this.coins.get(o.sym)?.price })),
       history: h.slice(0, 60),
       feed: this.feed.slice(0, 80), feedTotal: this.feed.length,
+      live: { t: this.liveT, feed: this.liveFeed.slice(0, 80), total: this.liveFeed.length },
       trig: Object.fromEntries(Object.entries(this.trig).map(([k, v]) => [k, { n: v.n, tp: v.tp / v.n, sl: v.sl / v.n, r: v.r / v.n }])),
       coins,
     };
