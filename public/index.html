@@ -13,57 +13,106 @@
 <meta name="apple-mobile-web-app-title" content="Market Brain">
 <title>Market Brain</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Karantina:wght@300;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Karantina:wght@300;700&family=Rubik:wght@400;500;600;700&display=swap">
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-  :root { --bg:#0b0e14; --panel:#131824; --panel2:#1a2030; --line:#252c3d; --text:#e6e9f0; --mute:#8b93a7; --green:#22c55e; --red:#ef4444; --amber:#f59e0b; --blue:#60a5fa; }
-  * { box-sizing: border-box; }
+  :root { --bg:#070a12; --panel:#0e1320; --panel2:#151c2c; --panel3:#1c2538; --line:#232c42; --text:#eef1f7; --mute:#8a94ab; --green:#2dd4a0; --red:#ff5d6c; --amber:#fbbf24; --blue:#6aa8ff; --r:14px; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; margin: 0; }
-  body { background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, "Segoe UI", Heebo, Arial, sans-serif; display: flex; flex-direction: column; }
-  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  header h1 { font-size: 18px; margin: 0; }
-  .pill { white-space: nowrap; padding: 3px 10px; border-radius: 99px; background: var(--panel2); color: var(--mute); font-size: 12px; }
-  .pill.live { color: var(--green); } .pill.busy { color: var(--amber); } .pill.err { color: var(--red); }
-  .spacer { flex: 1; }
-  button { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  button:hover { border-color: var(--blue); } button.on { background: #1d3557; border-color: var(--blue); }
-  main { flex: 1; min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr) 340px; }
-  aside { background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
-  #coinsPane { border-left: 1px solid var(--line); } #sidePane { border-right: 1px solid var(--line); overflow-y: auto; }
-  .tools { padding: 8px; display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
-  input, select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; min-width: 0; }
-  input { flex: 1; }
-  #coins { overflow-y: auto; flex: 1; }
-  .coin { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 7px 10px; border-bottom: 1px solid var(--line); cursor: pointer; }
-  .coin:hover, .coin.sel { background: var(--panel2); }
-  .coin b { font-weight: 600; } .coin small { color: var(--mute); }
+  body { background: radial-gradient(1200px 500px at 85% -10%, #14213d55, transparent), var(--bg); color: var(--text); font: 14px/1.45 'Rubik', -apple-system, "Segoe UI", Arial, sans-serif; display: flex; flex-direction: column; }
   .num { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
-  .up { color: var(--green); } .down { color: var(--red); } .mute { color: var(--mute); }
-  #power { display: flex; align-items: center; gap: 8px; padding: 4px 12px 6px; font-size: 13px; direction: rtl; flex-wrap: wrap; }
-  #pwBar { flex: 1; min-width: 80px; height: 8px; border-radius: 4px; background: var(--red); overflow: hidden; direction: rtl; }
-  #pwFill { display: block; height: 100%; width: 50%; background: var(--green); transition: width .2s; }
+  .up { color: var(--green); } .down { color: var(--red); } .mute { color: var(--mute); } .amb { color: var(--amber); }
+  .spacer { flex: 1; }
+  button { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; cursor: pointer; transition: background .15s, border-color .15s; }
+  button:hover { border-color: var(--blue); } button.on { background: #17305a; border-color: var(--blue); }
+  input, select { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-width: 0; outline: none; } input { flex: 1; } input:focus { border-color: var(--blue); }
+
+  header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #0a0e18cc; backdrop-filter: blur(8px); }
+  header h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; } header h1 span { color: var(--green); }
+  .pill { white-space: nowrap; padding: 3px 10px; border-radius: 99px; background: var(--panel2); color: var(--mute); font-size: 12px; }
+  #status { display: inline-flex; align-items: center; gap: 6px; } #status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.live { color: var(--green); } .pill.live::before { animation: pulse 1.6s infinite; } .pill.busy { color: var(--amber); } .pill.err { color: var(--red); }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 #2dd4a088; } 100% { box-shadow: 0 0 0 7px #2dd4a000; } }
+  #scanInfo { background: none; padding: 0; }
+  #soundBtn { border-radius: 99px; }
+
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px minmax(0, 1fr) 380px; }
+  aside { background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  #coinsPane { border-left: 1px solid var(--line); } #sidePane { border-right: 1px solid var(--line); overflow-y: auto; display: block; padding: 12px; }
+  .tools { padding: 10px; display: flex; gap: 6px; }
+  #coins { overflow-y: auto; flex: 1; padding: 0 8px 8px; }
+  .coin { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 9px 10px; border-radius: 12px; cursor: pointer; }
+  .coin + .coin { margin-top: 2px; } .coin:hover { background: var(--panel2); } .coin.sel { background: var(--panel3); box-shadow: inset 3px 0 0 var(--blue); }
+  .coin b { font-weight: 600; font-size: 14.5px; } .coin small { color: var(--mute); }
   .dots { display: inline-flex; gap: 3px; vertical-align: middle; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mute); } .dot.g { background: var(--green); } .dot.r { background: var(--red); }
-  .conf { font-size: 12px; padding: 1px 7px; border-radius: 6px; background: var(--bg); }
-  #center { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-  #chartBar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  #chartBar h2 { margin: 0; font-size: 16px; }
-  #chart { flex: 1; min-height: 260px; direction: ltr; }
-  #read { padding: 10px 12px 6px; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; font-size: 13px; }
-  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
-  .tile small { color: var(--mute); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #read .wide { grid-column: 1 / -1; font-size: 12px; }
-  #layers { flex: none; display: flex; gap: 6px; padding: 6px 12px; overflow-x: auto; scrollbar-width: none; } #layers::-webkit-scrollbar { display: none; }
-  .chip { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; font-size: 12px; color: var(--mute); background: transparent; }
-  .chip i { width: 12px; height: 4px; border-radius: 2px; opacity: .35; } .chip.on { color: var(--text); background: var(--panel2); } .chip.on i { opacity: 1; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); } .dot.g { background: var(--green); } .dot.r { background: var(--red); }
+  .conf { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--panel3); } .conf.up { background: #2dd4a01f; } .conf.down { background: #ff5d6c1f; }
+
+  #center { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; }
+  #chartBar { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px 6px; flex-wrap: wrap; }
+  #chartBar h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.01em; } #symPrice { font-size: 17px; color: var(--mute); }
+  #ivs { display: inline-flex; background: var(--panel2); border-radius: 10px; padding: 3px; gap: 2px; align-self: center; }
+  #ivs button { border: 0; background: none; padding: 4px 10px; border-radius: 8px; color: var(--mute); font-size: 13px; } #ivs button.on { background: var(--panel3); color: var(--text); box-shadow: 0 1px 4px #0006; }
+
+  /* pulse: one glance summary of the selected coin */
+  #pulseCard { margin: 4px 12px 8px; padding: 12px; border-radius: var(--r); background: linear-gradient(180deg, var(--panel2), var(--panel)); border: 1px solid var(--line); }
+  #pulse .ph { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; } #pulse .ph b { font-size: 16px; } #pulse .ph span { font-size: 12px; color: var(--mute); }
+  .segs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 10px; }
+  .seg { border-radius: 9px; padding: 5px 2px; text-align: center; font-size: 10px; letter-spacing: -.01em; color: var(--mute); background: var(--panel3); border-bottom: 3px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seg i { display: block; font-style: normal; font-weight: 600; font-size: 12.5px; } .seg.g { border-color: var(--green); } .seg.g i { color: var(--green); } .seg.r { border-color: var(--red); } .seg.r i { color: var(--red); }
+  #power { display: flex; align-items: center; gap: 8px; font-size: 13px; flex-wrap: wrap; }
+  #power b { font-size: 15px; }
+  #pwBar { flex: 1; min-width: 80px; height: 10px; border-radius: 6px; background: var(--red); overflow: hidden; direction: rtl; box-shadow: inset 0 0 0 1px #0004; }
+  #pwFill { display: block; height: 100%; width: 50%; background: var(--green); transition: width .25s; border-inline-end: 2px solid var(--bg); }
+  #pwWho { flex-basis: 100%; font-size: 11.5px; text-align: center; }
+
+  #layers { flex: none; display: flex; gap: 6px; padding: 2px 12px 8px; overflow-x: auto; scrollbar-width: none; } #layers::-webkit-scrollbar { display: none; }
+  .chip { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 99px; font-size: 12px; color: var(--mute); background: transparent; border-color: var(--line); }
+  .chip i { width: 12px; height: 4px; border-radius: 2px; opacity: .3; } .chip.on { color: var(--text); background: var(--panel2); } .chip.on i { opacity: 1; }
+  #chart { flex: 1; min-height: 300px; direction: ltr; }
+
+  #read { padding: 10px 12px 4px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .meter { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; min-width: 0; }
+  .meter small { display: flex; justify-content: space-between; align-items: baseline; color: var(--mute); font-size: 11.5px; gap: 4px; } .meter small b { font-size: 15px; }
+  .mbar { position: relative; height: 6px; border-radius: 3px; background: var(--panel3); margin-top: 6px; direction: ltr; }
+  .mbar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--blue); } .mbar i.g { background: var(--green); } .mbar i.r { background: var(--red); }
+  .mbar u { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); opacity: .55; border-radius: 1px; }
+  #read .wide { grid-column: 1 / -1; font-size: 12px; padding: 0 2px; }
+
   details > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; } details > summary::-webkit-details-marker { display: none; }
-  details > summary::after { content: '‹'; color: var(--mute); font-size: 16px; line-height: 1; transition: transform .15s; } details[open] > summary::after { transform: rotate(-90deg); }
-  .more { margin: 0 12px 6px; font-size: 12px; color: var(--mute); } .more > summary { padding: 4px 0; } .more > summary::after { margin-inline-start: auto; }
-  details.sec { border-bottom: 1px solid var(--line); }
-  details.sec > summary { padding: 12px; font-size: 13.5px; font-weight: 600; }
-  details.sec > summary .cnt { margin-inline-start: auto; font-weight: 500; font-size: 12px; color: var(--mute); }
-  details.sec > .body { padding: 0 12px 12px; }
+  details > summary::after { content: '‹'; color: var(--mute); font-size: 18px; line-height: 1; transition: transform .15s; } details[open] > summary::after { transform: rotate(-90deg); }
+  .more { margin: 0 12px 8px; padding: 0 12px; font-size: 12.5px; color: var(--mute); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; } .more > summary { padding: 9px 0; } .more > summary::after { margin-inline-start: auto; } .more > div { padding-bottom: 10px; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; } .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-inline-end: 4px; }
+
+  #stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .stat { background: linear-gradient(180deg, var(--panel2), var(--panel)); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 8px; text-align: center; }
+  .stat b { display: block; font-size: 22px; line-height: 1.15; } .stat small { color: var(--mute); font-size: 11.5px; }
+  details.sec { background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 10px; overflow: hidden; }
+  details.sec > summary { padding: 12px 14px; font-size: 14px; font-weight: 600; }
+  details.sec > summary .cnt { margin-inline-start: auto; font-weight: 500; font-size: 12px; color: var(--mute); background: var(--panel3); padding: 1px 9px; border-radius: 99px; } details.sec > summary .cnt:empty { background: none; }
+  details.sec > .body { padding: 0 10px 10px; }
+  .fb { display: inline-flex; background: var(--panel3); border-radius: 10px; padding: 3px; gap: 2px; margin-bottom: 8px; } .fb button { border: 0; background: none; padding: 4px 12px; border-radius: 8px; color: var(--mute); font-size: 12.5px; } .fb button.on { background: var(--bg); color: var(--text); }
+
+  .card { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; overflow: hidden; transition: transform .12s, border-color .12s; }
+  .card:hover { border-color: #3a4868; } .card:active { transform: scale(.985); }
+  .card::before { content: ''; position: absolute; inset: 0 0 0 auto; width: 4px; background: var(--mute); } .card.long::before { background: var(--green); } .card.short::before { background: var(--red); }
+  .card .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; } .card .row + .row { margin-top: 4px; } .card small { color: var(--mute); display: block; margin-top: 5px; font-size: 11.5px; }
+  .card .sym { font-size: 16px; font-weight: 700; } .side { font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 99px; margin-inline-start: 6px; } .side.l { background: #2dd4a022; color: var(--green); } .side.s { background: #ff5d6c22; color: var(--red); }
+  .card .why { color: var(--mute); font-size: 12.5px; margin-top: 2px; }
+  .tpl { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12.5px; } .tpl b { font-size: 17px; } .tpl .mbar { flex: 1; margin: 0; height: 7px; }
+  .lv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; } .lv div { background: var(--panel2); border-radius: 9px; padding: 4px 6px; text-align: center; font-size: 10.5px; color: var(--mute); } .lv b { display: block; font-size: 13px; color: var(--text); } .lv .s b { color: var(--red); } .lv .t b { color: var(--green); }
+  .badge { font-size: 11.5px; padding: 2px 10px; border-radius: 99px; font-weight: 600; white-space: nowrap; } .badge.v2 { background: #2dd4a026; color: var(--green); box-shadow: inset 0 0 0 1px #2dd4a055; } .badge.v1 { background: #fbbf2422; color: var(--amber); } .badge.v0 { background: #ff5d6c1c; color: var(--red); }
+  .empty { color: var(--mute); font-size: 13px; padding: 6px 4px; } .note { color: var(--mute); font-size: 11.5px; padding: 2px 4px; }
+  .disc { text-align: center; padding: 6px 12px 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; } td, th { padding: 5px 4px; text-align: start; border-bottom: 1px solid var(--line); } th { color: var(--mute); font-weight: 500; } tr:last-child td { border-bottom: 0; }
+  .bar { height: 6px; border-radius: 3px; background: var(--blue); display: inline-block; vertical-align: middle; }
+
+  #toasts { position: fixed; bottom: 16px; left: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 9; }
+  .toast { background: var(--panel3); border: 1px solid var(--line); border-inline-start: 4px solid var(--blue); border-radius: 12px; padding: 10px 14px; min-width: 260px; box-shadow: 0 10px 30px #000a; cursor: pointer; animation: toastIn .3s cubic-bezier(.2,.8,.2,1); }
+  .toast.long { border-inline-start-color: var(--green); } .toast.short { border-inline-start-color: var(--red); }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(14px); } }
   #tabs { display: none; }
+
   #splash { position: fixed; inset: 0; z-index: 99; background: #000; display: flex; align-items: flex-end; justify-content: center; transition: opacity .5s; }
   #splash img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 60%; }
   #splash div { position: relative; width: 100%; padding: 110px 20px calc(44px + env(safe-area-inset-bottom)); text-align: center; color: #fff; background: linear-gradient(transparent, #000d 60%); font-family: 'Karantina', 'Arial Hebrew', Arial, sans-serif; line-height: .95; text-shadow: 0 3px 18px #000a; animation: splashUp .7s cubic-bezier(.2,.8,.2,1) both; }
@@ -72,37 +121,24 @@
   #splash em { display: inline-block; font-style: normal; font-weight: 700; font-size: clamp(64px, 21vw, 136px); color: #fbbf24; transform: rotate(-4deg); margin-top: 2px; text-shadow: 0 4px 0 #7c2d12, 0 8px 24px #000c; }
   @keyframes splashUp { from { opacity: 0; transform: translateY(24px); } }
   #splash.out { opacity: 0; pointer-events: none; }
-  .legend { color: var(--mute); font-size: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
-  .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-inline-end: 4px; }
-  section { padding: 12px; border-bottom: 1px solid var(--line); }
-  section h3 { margin: 0 0 8px; font-size: 13px; color: var(--mute); font-weight: 600; }
-  .card { background: var(--panel2); border-radius: 10px; padding: 9px 10px; margin-bottom: 8px; border-inline-start: 3px solid var(--mute); cursor: pointer; }
-  .card.long { border-color: var(--green); } .card.short { border-color: var(--red); }
-  .card .row { display: flex; justify-content: space-between; gap: 8px; } .card small { color: var(--mute); display: block; }
-  .badge { font-size: 11px; padding: 1px 8px; border-radius: 99px; font-weight: 600; } .badge.v2 { background: #14532d; color: #86efac; } .badge.v1 { background: #713f12; color: #fde68a; } .badge.v0 { background: #450a0a; color: #fca5a5; }
-  .empty { color: var(--mute); font-size: 13px; }
-  table { width: 100%; border-collapse: collapse; font-size: 12.5px; } td, th { padding: 3px 4px; text-align: start; border-bottom: 1px solid var(--line); } th { color: var(--mute); font-weight: 500; }
-  .bar { height: 6px; border-radius: 3px; background: var(--blue); display: inline-block; vertical-align: middle; }
-  #toasts { position: fixed; bottom: 16px; left: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 9; }
-  .toast { background: var(--panel2); border: 1px solid var(--line); border-inline-start: 4px solid var(--blue); border-radius: 10px; padding: 10px 14px; min-width: 260px; box-shadow: 0 6px 24px #0008; cursor: pointer; }
-  .toast.long { border-inline-start-color: var(--green); } .toast.short { border-inline-start-color: var(--red); }
-  .note { color: var(--mute); font-size: 12px; }
+
   @media (max-width: 1000px) {
     body { height: 100dvh; }
     main { display: block; overflow: hidden; }
     main > * { display: none !important; height: 100%; overflow-y: auto; border: 0 !important; }
     body[data-tab="chart"] #center, body[data-tab="coins"] #coinsPane { display: flex !important; }
     body[data-tab="sig"] #sidePane { display: block !important; }
-    #chart { height: 46dvh; min-height: 270px; flex: none; }
-    header { gap: 6px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; flex-wrap: nowrap; } header h1 { font-size: 16px; white-space: nowrap; } .spacer { display: none; }
-    header { flex-wrap: wrap !important; } #scanInfo { order: 9; flex-basis: 100%; background: none; padding: 0; font-size: 11.5px; } #scanInfo:empty { display: none; }
-    #soundBtn { margin-inline-start: auto; padding: 5px 9px; flex: none; } #soundBtn .lbl { display: none; }
-    #ivs button { padding: 6px 9px; }
-    #tabs { display: flex; border-top: 1px solid var(--line); background: var(--panel); padding-bottom: env(safe-area-inset-bottom); }
-    #tabs button { flex: 1; border: 0; border-radius: 0; background: none; color: var(--mute); padding: 9px 4px 8px; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
-    #tabs button span { font-size: 18px; line-height: 1.1; } #tabs button.on { color: var(--text); box-shadow: inset 0 2px 0 var(--blue); }
-    #tabs b { color: var(--amber); font-weight: 600; }
-    #toasts { left: 8px; right: 8px; bottom: calc(64px + env(safe-area-inset-bottom)); } .toast { min-width: 0; }
+    aside { background: none; }
+    #chart { height: 44dvh; min-height: 270px; flex: none; }
+    header { gap: 8px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; flex-wrap: wrap; } .spacer { display: none; }
+    #scanInfo { order: 9; flex-basis: 100%; font-size: 11.5px; } #scanInfo:empty { display: none; }
+    #soundBtn { margin-inline-start: auto; padding: 5px 10px; flex: none; } #soundBtn .lbl { display: none; }
+    #tabs { display: flex; border-top: 1px solid var(--line); background: #0a0e18f2; backdrop-filter: blur(10px); padding: 4px 8px env(safe-area-inset-bottom); gap: 4px; }
+    #tabs button { flex: 1; border: 0; border-radius: 12px; background: none; color: var(--mute); padding: 7px 4px 6px; font-size: 11.5px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    #tabs svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    #tabs button.on { color: var(--text); background: var(--panel2); } #tabs button.on svg { stroke: var(--green); }
+    #tabs b { color: var(--bg); background: var(--amber); border-radius: 99px; padding: 0 6px; font-weight: 700; font-size: 10.5px; } #tabs b:empty { display: none; }
+    #toasts { left: 8px; right: 8px; bottom: calc(70px + env(safe-area-inset-bottom)); } .toast { min-width: 0; }
   }
 </style>
 </head>
@@ -113,7 +149,7 @@
 (() => { const el = document.getElementById('splash'), go = () => { el.classList.add('out'); setTimeout(() => el.remove(), 600); }; setTimeout(go, 3000); el.onclick = go; })();
 </script>
 <header>
-  <h1>🧠 Market Brain</h1>
+  <h1>Market<span>Brain</span></h1>
   <span id="status" class="pill">מתחבר…</span>
   <span id="scanInfo" class="pill"></span>
   <span class="spacer"></span>
@@ -137,18 +173,21 @@
       <span class="spacer"></span>
       <span id="ivs"></span>
     </div>
-    <div id="power" title="הערכה לפי נפח המסחר והמקום שבו כל נר נסגר, ממוצע של 14 נרות">
-      <span class="up">קונים <b class="num" id="pwB">–</b></span>
-      <div id="pwBar"><i id="pwFill"></i></div>
-      <span class="down"><b class="num" id="pwS">–</b> מוכרים</span>
-      <span class="mute" id="pwWho"></span>
+    <div id="pulseCard">
+      <div id="pulse"></div>
+      <div id="power" title="הערכה לפי נפח המסחר והמקום שבו כל נר נסגר, ממוצע של 14 נרות">
+        <span class="up">קונים <b class="num" id="pwB">–</b></span>
+        <div id="pwBar"><i id="pwFill"></i></div>
+        <span class="down"><b class="num" id="pwS">–</b> מוכרים</span>
+        <span class="mute" id="pwWho"></span>
+      </div>
     </div>
     <div id="layers"></div>
     <div id="chart"></div>
     <div id="read"></div>
     <details class="more"><summary>סיכוי ל-TP במטבע הזה אחרי כל הצטלבות</summary><div id="odds"></div></details>
     <details class="more"><summary>מקרא הגרף</summary>
-    <div id="read2" class="legend" style="padding:4px 0 6px">
+    <div id="read2" class="legend">
       <span><i style="background:#f59e0b"></i>VWAP</span>
       <span><i style="background:#22c55e"></i><i style="background:#ef4444"></i>קו UT Bot</span>
       <span>▲▼ היפוך UT Bot</span>
@@ -159,22 +198,23 @@
   </div>
 
   <aside id="sidePane">
-    <details class="sec" open><summary>מתגבש עכשיו – בנר שעוד לא נסגר<span class="cnt num" id="liveCnt"></span></summary><div class="body">
+    <div id="stats"></div>
+    <details class="sec" open><summary>עסקאות פתוחות<span class="cnt num" id="openCnt"></span></summary><div class="body"><div id="open"></div></div></details>
+    <details class="sec" open><summary>מתגבש עכשיו<span class="cnt num" id="liveCnt"></span></summary><div class="body">
       <div id="liveFeed"></div></div></details>
-    <details class="sec" open><summary>הצטלבויות בנר האחרון – להיכנס או לא?<span class="cnt num" id="feedCnt"></span></summary><div class="body">
-      <div class="tools" style="padding:0 0 8px;border:0"><button data-f="1" class="fbtn on">כדאי + גבולי</button><button data-f="0" class="fbtn">הכול</button></div>
+    <details class="sec" open><summary>בנר האחרון שנסגר<span class="cnt num" id="feedCnt"></span></summary><div class="body">
+      <div class="fb"><button data-f="1" class="fbtn on">כדאי + גבולי</button><button data-f="0" class="fbtn">הכול</button></div>
       <div id="feed"></div></div></details>
-    <details class="sec" open><summary>עסקאות פתוחות – הבוט אמר להיכנס<span class="cnt num" id="openCnt"></span></summary><div class="body"><div id="open"></div></div></details>
     <details class="sec"><summary>היסטוריית איתותים<span class="cnt num" id="histCnt"></span></summary><div class="body"><div id="perf" class="note" style="margin-bottom:6px"></div><div id="history"></div></div></details>
-    <details class="sec"><summary>סיכויי פגיעה ב-TP לפי אינדיקטור (כל השוק)<span class="cnt"></span></summary><div class="body"><div id="trig"></div></div></details>
+    <details class="sec"><summary>סיכויי פגיעה ב-TP לפי אינדיקטור<span class="cnt">כל השוק</span></summary><div class="body"><div id="trig"></div></div></details>
     <details class="sec"><summary>מה הבוט למד עד עכשיו<span class="cnt num" id="brainCnt"></span></summary><div class="body"><div id="brain"></div></div></details>
-    <section class="note">הבוט נותן איתותים בלבד ולא מבצע עסקאות. זה כלי עזר ולא ייעוץ השקעות – אין הבטחה לרווח, ואפשר להפסיד כסף.</section>
+    <div class="note disc">הבוט נותן איתותים בלבד ולא מבצע עסקאות. זה כלי עזר ולא ייעוץ השקעות – אין הבטחה לרווח, ואפשר להפסיד כסף.</div>
   </aside>
 </main>
 <nav id="tabs">
-  <button data-tab="chart" class="on"><span>📈</span>גרף</button>
-  <button data-tab="sig"><span>🎯</span><div>איתותים <b class="num" id="tabCnt"></b></div></button>
-  <button data-tab="coins"><span>🪙</span>מטבעות</button>
+  <button data-tab="chart" class="on"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 6-8"/><path d="M3 21h18"/></svg>גרף</button>
+  <button data-tab="sig"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><div>איתותים <b class="num" id="tabCnt"></b></div></button>
+  <button data-tab="coins"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="7" rx="7" ry="3"/><path d="M5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/></svg>מטבעות</button>
 </nav>
 <div id="toasts"></div>
 
@@ -194,13 +234,13 @@ const ivHe = (v) => (IVS.find((x) => x[0] === v) || [, v])[1];
 
 // ---------- chart ----------
 const chart = LightweightCharts.createChart($('chart'), {
-  layout: { background: { color: '#0b0e14' }, textColor: '#8b93a7' },
-  grid: { vertLines: { color: '#161b27' }, horzLines: { color: '#161b27' } },
-  timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#252c3d' },
-  rightPriceScale: { borderColor: '#252c3d', scaleMargins: { top: 0.05, bottom: 0.36 } },
+  layout: { background: { color: 'transparent' }, textColor: '#8a94ab', fontFamily: 'Rubik, sans-serif' },
+  grid: { vertLines: { color: '#141a2a' }, horzLines: { color: '#141a2a' } },
+  timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#232c42' },
+  rightPriceScale: { borderColor: '#232c42', scaleMargins: { top: 0.05, bottom: 0.36 } },
   crosshair: { mode: 0 }, autoSize: true,
 });
-const candles = chart.addCandlestickSeries({ upColor: '#22c55e', downColor: '#ef4444', wickUpColor: '#22c55e', wickDownColor: '#ef4444', borderVisible: false });
+const candles = chart.addCandlestickSeries({ upColor: '#2dd4a0', downColor: '#ff5d6c', wickUpColor: '#2dd4a0', wickDownColor: '#ff5d6c', borderVisible: false });
 const vwapS = chart.addLineSeries({ color: '#f59e0b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 const utS = chart.addLineSeries({ lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
 const probOpts = { priceScaleId: 'prob', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, priceFormat: { type: 'percent' } };
@@ -353,24 +393,28 @@ function render() {
     </div>`;
   }).join('') || '<div class="empty" style="padding:12px">אין מטבעות</div>';
 
-  // selected coin readout
+  // selected coin: one-glance pulse + meters
   const c = state.coins.find((x) => x.s === sym);
   if (c && c.pL != null) {
-    const tag = (v, a, b) => `<b class="${v > 0 ? 'up' : 'down'}">${v > 0 ? a : b}</b>`, tile = (name, val) => `<div class="tile"><small>${name}</small>${val}</div>`;
-    const trig = [...(c.tL || []), ...(c.tS || [])];
-    $('read').innerHTML = tile('UT Bot', tag(c.ut, 'קנייה', 'מכירה')) + tile('VWAP', tag(c.vw, 'מעל', 'מתחת')) + tile('SSL', tag(c.ssl, 'ירוק', 'אדום')) + tile('Buy Sell Signal', tag(c.bs, 'קנייה', 'מכירה')) + tile('Buy Sell Volume', tag(c.bv, 'קונים', 'מוכרים'))
-      + tile('RSI', `<b class="num">${c.rsi.toFixed(0)}</b>`) + tile('ביטחון ללונג', `<b class="num up">${pct(c.pL)}</b>`) + tile('ביטחון לשורט', `<b class="num down">${pct(c.pS)}</b>`)
-      + `<span class="mute wide">${trig.length ? 'טריגר טרי: ' + trig.join(' · ') : 'אין טריגר טרי בנר האחרון'} (לפי נרות ${ivHe(state.cfg.tf)}${c.lv ? ' · המצב למעלה חי, מהנר שמתגבש' : ''})</span>`;
-  } else $('read').innerHTML = '<span class="mute wide">אין עדיין מספיק נתונים למטבע הזה</span>';
+    const IND = [['UT Bot', c.ut, 'קנייה', 'מכירה'], ['VWAP', c.vw, 'מעל', 'מתחת'], ['SSL', c.ssl, 'ירוק', 'אדום'], ['BS Signal', c.bs, 'קנייה', 'מכירה'], ['BS Volume', c.bv, 'קונים', 'מוכרים']];
+    const buy = IND.filter((x) => x[1] > 0).length, sell = IND.length - buy;
+    const [cls, txt] = buy >= 4 ? ['up', 'רוב האינדיקטורים בקנייה'] : sell >= 4 ? ['down', 'רוב האינדיקטורים במכירה'] : ['amb', 'האינדיקטורים חלוקים'];
+    $('pulse').innerHTML = `<div class="ph"><b class="${cls}">${txt}</b><span><span class="num">${buy}</span> קנייה · <span class="num">${sell}</span> מכירה${c.lv ? ' · חי' : ''}</span></div>
+      <div class="segs">${IND.map(([n, v, a, b]) => `<span class="seg ${v > 0 ? 'g' : 'r'}" title="${n}">${n}<i>${v > 0 ? a : b}</i></span>`).join('')}</div>`;
+    const meter = (name, val, w, k, marks) => `<div class="meter"><small>${name}<b class="num ${k === 'g' ? 'up' : k === 'r' ? 'down' : ''}">${val}</b></small><div class="mbar"><i class="${k}" style="width:${Math.max(0, Math.min(100, w))}%"></i>${marks.map((m) => `<u style="left:${m}%"></u>`).join('')}</div></div>`;
+    const trig = [...(c.tL || []), ...(c.tS || [])], mp = state.cfg.minProb * 100;
+    $('read').innerHTML = meter('ביטחון ללונג', pct(c.pL), c.pL * 100, 'g', [mp]) + meter('ביטחון לשורט', pct(c.pS), c.pS * 100, 'r', [mp]) + meter('RSI', c.rsi.toFixed(0), c.rsi, '', [30, 70])
+      + `<span class="mute wide">${trig.length ? 'טריגר טרי: ' + trig.join(' · ') : 'אין טריגר טרי בנר האחרון'} (לפי נרות ${ivHe(state.cfg.tf)}). הקו הלבן במדי הביטחון הוא הסף לאיתות (${pct(state.cfg.minProb)}).</span>`;
+  } else { $('pulse').innerHTML = '<div class="ph"><b class="mute">אין עדיין מספיק נתונים למטבע הזה</b></div>'; $('read').innerHTML = ''; }
 
   // crossover feed
   const VERD = ['לא להיכנס', 'גבולי', 'כדאי להיכנס'], be = breakEven();
   const fl = (state.feed || []).filter((f) => f.verdict >= feedMin);
   const card = (f) => `<div class="card ${f.side > 0 ? 'long' : 'short'}" data-s="${f.sym}">
-      <div class="row"><b><span class="num">${f.sym.replace('USDT', '')}</span> · ${f.side > 0 ? 'לונג' : 'שורט'}</b><span class="badge v${f.verdict}">${f.live ? 'אם ייסגר כך: ' : ''}${VERD[f.verdict]}</span></div>
-      <div class="row"><span>${f.reasons.join(' + ')}</span></div>
-      <div class="row"><span>סיכוי ל-TP: <b class="num ${f.tpProb >= be ? 'up' : 'down'}">${pct(f.tpProb)}</b></span><span class="mute">צפי <span class="num">${sgn(f.expR, 2)}R</span></span></div>
-      <div class="row"><span>כניסה <span class="num">${fmtP(f.entry)}</span></span><span class="down">סטופ <span class="num">${fmtP(f.sl)}</span></span><span class="up">יעד <span class="num">${fmtP(f.tp)}</span></span></div>
+      <div class="row"><span><span class="sym num">${f.sym.replace('USDT', '')}</span><span class="side ${f.side > 0 ? 'l' : 's'}">${f.side > 0 ? 'לונג' : 'שורט'}</span></span><span class="badge v${f.verdict}">${f.live ? 'אם ייסגר כך: ' : ''}${VERD[f.verdict]}</span></div>
+      <div class="why">${f.reasons.join(' + ')}</div>
+      <div class="tpl"><span>סיכוי ל-TP</span><b class="num ${f.tpProb >= be ? 'up' : 'down'}">${pct(f.tpProb)}</b><div class="mbar" title="הקו הלבן: נקודת האיזון"><i class="${f.tpProb >= be ? 'g' : 'r'}" style="width:${Math.min(100, f.tpProb * 125)}%"></i><u style="left:${be * 125}%"></u></div><span class="mute">צפי <span class="num">${sgn(f.expR, 2)}R</span></span></div>
+      <div class="lv"><div>כניסה<b class="num">${fmtP(f.entry)}</b></div><div class="s">סטופ<b class="num">${fmtP(f.sl)}</b></div><div class="t">יעד<b class="num">${fmtP(f.tp)}</b></div></div>
       <small>במטבע הזה: ${f.n ? `<span class="num">${pct(f.coinTp)}</span> מתוך ${f.n} מקרים` : 'אין עדיין מקרים'} · בכל השוק <span class="num">${pct(f.mktTp)}</span> · מודל ${f.modelOk ? '✓' : '✗'} <span class="num">${pct(f.p)}</span> · היסטוריה ${f.statOk ? '✓' : '✗'}</small></div>`;
   const lf = (state.live?.feed || []).filter((f) => f.verdict >= feedMin), lGood = (state.live?.feed || []).filter((f) => f.verdict >= 1).length;
   $('liveCnt').textContent = state.live?.t ? `${lGood} מתוך ${state.live.total}` : '';
@@ -383,6 +427,10 @@ function render() {
   const nGood = (state.feed || []).filter((f) => f.verdict >= 1).length;
   $('feedCnt').textContent = `${nGood} מתוך ${state.feedTotal || 0}`; $('openCnt').textContent = state.open.length || '';
   $('tabCnt').textContent = nGood + lGood + state.open.length || '';
+  const pf = state.perf;
+  $('stats').innerHTML = `<div class="stat"><b class="num">${state.open.length}</b><small>עסקאות פתוחות</small></div>
+    <div class="stat"><b class="num ${lGood ? 'amb' : ''}">${lGood}</b><small>מתגבשים בסף</small></div>
+    <div class="stat"><b class="num ${pf.sumR > 0 ? 'up' : pf.sumR < 0 ? 'down' : ''}">${pf.n ? sgn(pf.sumR, 1) + 'R' : '–'}</b><small>${pf.n ? `תוצאה · ${pf.wins}/${pf.n} ברווח` : 'עוד אין תוצאות'}</small></div>`;
   $('brainCnt').textContent = state.brain.samples.toLocaleString('en');
 
   // market-wide odds per indicator
@@ -394,10 +442,9 @@ function render() {
   $('open').innerHTML = state.open.map((o) => {
     const risk = Math.abs(o.entry - o.sl), r = o.price ? o.side * (o.price - o.entry) / risk : 0;
     return `<div class="card ${o.side > 0 ? 'long' : 'short'}" data-s="${o.sym}">
-      <div class="row"><b><span class="num">${o.sym.replace('USDT', '')}</span> · ${sideHe(o.side)}</b><b class="num ${r >= 0 ? 'up' : 'down'}">${sgn(r, 2)}R</b></div>
-      <div class="row"><span>כניסה <span class="num">${fmtP(o.entry)}</span></span><span>עכשיו <span class="num">${fmtP(o.price)}</span></span></div>
-      <div class="row"><span class="down">סטופ <span class="num">${fmtP(o.sl)}</span></span><span class="up">יעד <span class="num">${fmtP(o.tp)}</span></span></div>
-      <small>${o.reasons.join(' · ')}${o.tpProb ? ' · סיכוי ל-TP ' + pct(o.tpProb) : ''} · ${timeHe(o.t)}</small></div>`;
+      <div class="row"><span><span class="sym num">${o.sym.replace('USDT', '')}</span><span class="side ${o.side > 0 ? 'l' : 's'}">${o.side > 0 ? 'לונג' : 'שורט'}</span></span><b class="num ${r >= 0 ? 'up' : 'down'}" style="font-size:17px">${sgn(r, 2)}R</b></div>
+      <div class="lv"><div>כניסה<b class="num">${fmtP(o.entry)}</b></div><div class="s">סטופ<b class="num">${fmtP(o.sl)}</b></div><div class="t">יעד<b class="num">${fmtP(o.tp)}</b></div></div>
+      <small>עכשיו <span class="num">${fmtP(o.price)}</span> · ${o.reasons.join(' · ')}${o.tpProb ? ' · סיכוי ל-TP ' + pct(o.tpProb) : ''} · ${timeHe(o.t)}</small></div>`;
   }).join('') || '<div class="empty">אין כרגע עסקה פתוחה. הבוט מחכה לאיתות שעומד בתנאים.</div>';
 
   // brain
@@ -415,7 +462,7 @@ function render() {
   $('histCnt').textContent = p.n ? `${p.n} · ${sgn(p.sumR, 1)}R` : '';
   $('perf').textContent = p.n ? `${p.n} איתותים נסגרו · ${p.wins} ברווח (${Math.round(100 * p.wins / p.n)}%) · סה״כ ${sgn(p.sumR, 1)}R` : '';
   $('history').innerHTML = state.history.map((h) => `<div class="card ${h.side > 0 ? 'long' : 'short'}" data-s="${h.sym}">
-      <div class="row"><b><span class="num">${h.sym.replace('USDT', '')}</span> · ${h.side > 0 ? 'לונג' : 'שורט'}</b><b class="num ${h.r > 0 ? 'up' : 'down'}">${sgn(h.r, 2)}R</b></div>
+      <div class="row"><span><span class="sym num">${h.sym.replace('USDT', '')}</span><span class="side ${h.side > 0 ? 'l' : 's'}">${h.side > 0 ? 'לונג' : 'שורט'}</span></span><b class="num ${h.r > 0 ? 'up' : 'down'}">${sgn(h.r, 2)}R</b></div>
       <small>${h.reason} · <span class="num">${fmtP(h.entry)} → ${fmtP(h.exit)}</span> · ${timeHe(h.exitT)}</small></div>`).join('') || '<div class="empty">עוד לא נסגרו איתותים.</div>';
 }
 
@@ -436,12 +483,37 @@ function beep(freqs) {
     o.start(t); o.stop(t + 0.2);
   });
 }
+// Cash register "ka-ching": a short mechanical clack, then two bright bell hits that ring out.
+function kaching() {
+  if (!soundOn) return;
+  audio ||= new AudioContext();
+  const t0 = audio.currentTime + 0.02, out = audio.createGain();
+  out.gain.value = 0.5; out.connect(audio.destination);
+  const noise = (t, dur, freq, vol) => {
+    const len = Math.ceil(audio.sampleRate * dur), buf = audio.createBuffer(1, len, audio.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 2;
+    const src = audio.createBufferSource(), f = audio.createBiquadFilter(), g = audio.createGain();
+    src.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 1.2; g.gain.value = vol;
+    src.connect(f); f.connect(g); g.connect(out); src.start(t);
+  };
+  const bell = (t, base, vol, ring) => [[1, 1], [2.76, 0.5], [5.4, 0.28], [8.9, 0.14]].forEach(([m, a]) => {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = 'sine'; o.frequency.value = base * m; o.connect(g); g.connect(out);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * a, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + ring / Math.sqrt(m));
+    o.start(t); o.stop(t + ring + 0.05);
+  });
+  noise(t0, 0.07, 1800, 0.9);            // "ka": the key / drawer clack
+  noise(t0 + 0.09, 0.05, 3200, 0.5);
+  bell(t0 + 0.13, 1975, 0.5, 0.5);       // "ching"
+  bell(t0 + 0.24, 2637, 0.6, 1.4);
+  noise(t0 + 0.24, 0.25, 7000, 0.12);    // coin shimmer
+}
 function alertUser(title, body, cls, s, tones) {
   const el = document.createElement('div');
   el.className = 'toast ' + cls; el.innerHTML = `<b>${title}</b><div>${body}</div>`;
   el.onclick = () => { select(s, state.cfg.tf); setTab('chart'); el.remove(); };
   $('toasts').append(el); setTimeout(() => el.remove(), 60000);
-  beep(tones);
+  if (tones === 'cash') kaching(); else beep(tones);
   if (soundOn && 'Notification' in window && Notification.permission === 'granted') new Notification(title, { body: body.replace(/<[^>]+>/g, '') });
 }
 function connectServer() {
@@ -449,7 +521,7 @@ function connectServer() {
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data), s = m.signal;
     if (m.type === 'live') { refresh(); if (Date.now() - lastChartT > 30000) loadChart(true); return; }
-    if (m.type === 'signal') alertUser(`כניסה: ${s.sym.replace('USDT', '')} ${sideHe(s.side)}`, `מחיר ${fmtP(s.entry)} · סטופ ${fmtP(s.sl)} · יעד ${fmtP(s.tp)}<br>${s.reasons.join(' + ')} · סיכוי ל-TP ${pct(s.tpProb)}`, s.side > 0 ? 'long' : 'short', s.sym, s.side > 0 ? [660, 880, 1100] : [880, 660, 520]);
+    if (m.type === 'signal') alertUser(`כניסה: ${s.sym.replace('USDT', '')} ${sideHe(s.side)}`, `מחיר ${fmtP(s.entry)} · סטופ ${fmtP(s.sl)} · יעד ${fmtP(s.tp)}<br>${s.reasons.join(' + ')} · סיכוי ל-TP ${pct(s.tpProb)}`, s.side > 0 ? 'long' : 'short', s.sym, 'cash');
     if (m.type === 'exit') alertUser(`יציאה: ${s.sym.replace('USDT', '')}`, `${s.reason} · מחיר ${fmtP(s.exit)} · תוצאה ${sgn(s.r, 2)}R`, '', s.sym, [520, 520]);
     if (m.type === 'status' && state) { state.status = m.status; render(); if (m.status.phase === 'live') refresh(); }
     if (m.type !== 'status') { refresh(); if (m.type !== 'scan' ? s.sym === sym : true) loadChart(true); }
@@ -459,7 +531,7 @@ function connectServer() {
 
 $('soundBtn').onclick = async () => {
   soundOn = !soundOn;
-  if (soundOn) { audio ||= new AudioContext(); audio.resume(); beep([880]); if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission(); }
+  if (soundOn) { audio ||= new AudioContext(); audio.resume(); kaching(); if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission(); }
   $('soundBtn').innerHTML = soundOn ? '🔔<span class="lbl"> צליל והתראות פועלים</span>' : '🔕<span class="lbl"> הפעל צליל והתראות</span>';
   $('soundBtn').classList.toggle('on', soundOn);
 };
