@@ -2,3 +2,5 @@ node_modules
 data/state.json
 .DS_Store
 HANDOFF.md
+# personal photo for the opening screen - kept out of the public repo, copied to the server by hand
+public/splash.jpg
