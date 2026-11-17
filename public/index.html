@@ -20,7 +20,7 @@
   body { background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, "Segoe UI", Heebo, Arial, sans-serif; display: flex; flex-direction: column; }
   header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   header h1 { font-size: 18px; margin: 0; }
-  .pill { padding: 3px 10px; border-radius: 99px; background: var(--panel2); color: var(--mute); font-size: 12px; }
+  .pill { white-space: nowrap; padding: 3px 10px; border-radius: 99px; background: var(--panel2); color: var(--mute); font-size: 12px; }
   .pill.live { color: var(--green); } .pill.busy { color: var(--amber); } .pill.err { color: var(--red); }
   .spacer { flex: 1; }
   button { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
@@ -47,7 +47,21 @@
   #chartBar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   #chartBar h2 { margin: 0; font-size: 16px; }
   #chart { flex: 1; min-height: 260px; direction: ltr; }
-  #read { padding: 8px 12px; border-top: 1px solid var(--line); display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
+  #read { padding: 10px 12px 6px; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; font-size: 13px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+  .tile small { color: var(--mute); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #read .wide { grid-column: 1 / -1; font-size: 12px; }
+  #layers { flex: none; display: flex; gap: 6px; padding: 6px 12px; overflow-x: auto; scrollbar-width: none; } #layers::-webkit-scrollbar { display: none; }
+  .chip { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; font-size: 12px; color: var(--mute); background: transparent; }
+  .chip i { width: 12px; height: 4px; border-radius: 2px; opacity: .35; } .chip.on { color: var(--text); background: var(--panel2); } .chip.on i { opacity: 1; }
+  details > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; } details > summary::-webkit-details-marker { display: none; }
+  details > summary::after { content: '‹'; color: var(--mute); font-size: 16px; line-height: 1; transition: transform .15s; } details[open] > summary::after { transform: rotate(-90deg); }
+  .more { margin: 0 12px 6px; font-size: 12px; color: var(--mute); } .more > summary { padding: 4px 0; } .more > summary::after { margin-inline-start: auto; }
+  details.sec { border-bottom: 1px solid var(--line); }
+  details.sec > summary { padding: 12px; font-size: 13.5px; font-weight: 600; }
+  details.sec > summary .cnt { margin-inline-start: auto; font-weight: 500; font-size: 12px; color: var(--mute); }
+  details.sec > .body { padding: 0 12px 12px; }
+  #tabs { display: none; }
   .legend { color: var(--mute); font-size: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
   .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-inline-end: 4px; }
   section { padding: 12px; border-bottom: 1px solid var(--line); }
@@ -63,29 +77,32 @@
   .toast { background: var(--panel2); border: 1px solid var(--line); border-inline-start: 4px solid var(--blue); border-radius: 10px; padding: 10px 14px; min-width: 260px; box-shadow: 0 6px 24px #0008; cursor: pointer; }
   .toast.long { border-inline-start-color: var(--green); } .toast.short { border-inline-start-color: var(--red); }
   .note { color: var(--mute); font-size: 12px; }
-  header { padding-top: calc(10px + env(safe-area-inset-top)); }
   @media (max-width: 1000px) {
-    body { height: auto; }
-    main { display: flex; flex-direction: column; }
-    #center { order: 1; } #sidePane { order: 2; overflow: visible; } #coinsPane { order: 3; }
-    #coinsPane, #sidePane { border: 0; border-top: 1px solid var(--line); }
-    #coins { max-height: 420px; }
-    #chart { height: 52vh; min-height: 300px; flex: none; }
-    header { gap: 8px; padding-inline: 12px; } header h1 { font-size: 16px; } .spacer { display: none; }
-    #soundBtn { margin-inline-start: auto; }
+    body { height: 100dvh; }
+    main { display: block; overflow: hidden; }
+    main > * { display: none !important; height: 100%; overflow-y: auto; border: 0 !important; }
+    body[data-tab="chart"] #center, body[data-tab="coins"] #coinsPane { display: flex !important; }
+    body[data-tab="sig"] #sidePane { display: block !important; }
+    #chart { height: 46dvh; min-height: 270px; flex: none; }
+    header { gap: 6px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; flex-wrap: nowrap; } header h1 { font-size: 16px; white-space: nowrap; } .spacer { display: none; }
+    header { flex-wrap: wrap !important; } #scanInfo { order: 9; flex-basis: 100%; background: none; padding: 0; font-size: 11.5px; } #scanInfo:empty { display: none; }
+    #soundBtn { margin-inline-start: auto; padding: 5px 9px; flex: none; } #soundBtn .lbl { display: none; }
     #ivs button { padding: 6px 9px; }
-    #sidePane { padding-bottom: env(safe-area-inset-bottom); }
-    #toasts { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); } .toast { min-width: 0; }
+    #tabs { display: flex; border-top: 1px solid var(--line); background: var(--panel); padding-bottom: env(safe-area-inset-bottom); }
+    #tabs button { flex: 1; border: 0; border-radius: 0; background: none; color: var(--mute); padding: 9px 4px 8px; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+    #tabs button span { font-size: 18px; line-height: 1.1; } #tabs button.on { color: var(--text); box-shadow: inset 0 2px 0 var(--blue); }
+    #tabs b { color: var(--amber); font-weight: 600; }
+    #toasts { left: 8px; right: 8px; bottom: calc(64px + env(safe-area-inset-bottom)); } .toast { min-width: 0; }
   }
 </style>
 </head>
-<body>
+<body data-tab="chart">
 <header>
   <h1>🧠 Market Brain</h1>
   <span id="status" class="pill">מתחבר…</span>
   <span id="scanInfo" class="pill"></span>
   <span class="spacer"></span>
-  <button id="soundBtn">🔔 הפעל צליל והתראות</button>
+  <button id="soundBtn">🔕<span class="lbl"> הפעל צליל והתראות</span></button>
 </header>
 <main>
   <aside id="coinsPane">
@@ -111,30 +128,37 @@
       <span class="down"><b class="num" id="pwS">–</b> מוכרים</span>
       <span class="mute" id="pwWho"></span>
     </div>
+    <div id="layers"></div>
     <div id="chart"></div>
     <div id="read"></div>
-    <div id="odds" class="note" style="padding:0 12px 6px"></div>
-    <div id="read2" class="legend" style="padding:0 12px 8px">
+    <details class="more"><summary>סיכוי ל-TP במטבע הזה אחרי כל הצטלבות</summary><div id="odds"></div></details>
+    <details class="more"><summary>מקרא הגרף</summary>
+    <div id="read2" class="legend" style="padding:4px 0 6px">
       <span><i style="background:#f59e0b"></i>VWAP</span>
       <span><i style="background:#22c55e"></i><i style="background:#ef4444"></i>קו UT Bot</span>
       <span>▲▼ היפוך UT Bot</span>
       <span><i style="background:#38bdf8"></i><i style="background:#c084fc"></i>Buy Sell Signal (קווים, B = קנייה, S = מכירה)</span>
       <span><i style="background:#22c55e99"></i><i style="background:#ef444499"></i>Buy Sell Volume – עמודות: קונים מול מוכרים</span>
       <span><i style="background:#22c55e88"></i><i style="background:#ef444488"></i>ביטחון המודל ללונג / שורט (בתחתית הגרף)</span>
-    </div>
+    </div></details>
   </div>
 
   <aside id="sidePane">
-    <section><h3>הצטלבויות בנר האחרון – להיכנס או לא?</h3>
+    <details class="sec" open><summary>הצטלבויות בנר האחרון – להיכנס או לא?<span class="cnt num" id="feedCnt"></span></summary><div class="body">
       <div class="tools" style="padding:0 0 8px;border:0"><button data-f="1" class="fbtn on">כדאי + גבולי</button><button data-f="0" class="fbtn">הכול</button></div>
-      <div id="feed"></div></section>
-    <section><h3>עסקאות פתוחות – הבוט אמר להיכנס</h3><div id="open"></div></section>
-    <section><h3>סיכויי פגיעה ב-TP לפי אינדיקטור (כל השוק)</h3><div id="trig"></div></section>
-    <section><h3>מה הבוט למד עד עכשיו</h3><div id="brain"></div></section>
-    <section><h3>היסטוריית איתותים</h3><div id="perf" class="note" style="margin-bottom:6px"></div><div id="history"></div></section>
+      <div id="feed"></div></div></details>
+    <details class="sec" open><summary>עסקאות פתוחות – הבוט אמר להיכנס<span class="cnt num" id="openCnt"></span></summary><div class="body"><div id="open"></div></div></details>
+    <details class="sec"><summary>היסטוריית איתותים<span class="cnt num" id="histCnt"></span></summary><div class="body"><div id="perf" class="note" style="margin-bottom:6px"></div><div id="history"></div></div></details>
+    <details class="sec"><summary>סיכויי פגיעה ב-TP לפי אינדיקטור (כל השוק)<span class="cnt"></span></summary><div class="body"><div id="trig"></div></div></details>
+    <details class="sec"><summary>מה הבוט למד עד עכשיו<span class="cnt num" id="brainCnt"></span></summary><div class="body"><div id="brain"></div></div></details>
     <section class="note">הבוט נותן איתותים בלבד ולא מבצע עסקאות. זה כלי עזר ולא ייעוץ השקעות – אין הבטחה לרווח, ואפשר להפסיד כסף.</section>
   </aside>
 </main>
+<nav id="tabs">
+  <button data-tab="chart" class="on"><span>📈</span>גרף</button>
+  <button data-tab="sig"><span>🎯</span><div>איתותים <b class="num" id="tabCnt"></b></div></button>
+  <button data-tab="coins"><span>🪙</span>מטבעות</button>
+</nav>
 <div id="toasts"></div>
 
 <script>
@@ -172,6 +196,45 @@ const bsSlowS = chart.addLineSeries({ ...bsOpts, color: '#c084fc' });
 const bvS = chart.addHistogramSeries({ priceScaleId: 'bv', priceLineVisible: false, lastValueVisible: false, priceFormat: { type: 'percent' } });
 chart.priceScale('bv').applyOptions({ scaleMargins: { top: 0.68, bottom: 0.18 }, visible: false });
 
+// Chart layers the user can switch on and off (the choice is remembered on this device).
+const LAYERS = [['ut', 'UT Bot', 'linear-gradient(90deg,#22c55e 50%,#ef4444 50%)'], ['vwap', 'VWAP', '#f59e0b'], ['bs', 'Buy Sell Signal', 'linear-gradient(90deg,#38bdf8 50%,#c084fc 50%)'], ['bv', 'Buy Sell Volume', 'linear-gradient(90deg,#22c55e99 50%,#ef444499 50%)'], ['prob', 'ביטחון המודל', 'linear-gradient(90deg,#22c55e88 50%,#ef444488 50%)']];
+let layers = { ut: 1, vwap: 1, bs: 1, bv: 1, prob: 0 };
+try { Object.assign(layers, JSON.parse(localStorage.getItem('layers') || '{}')); } catch {}
+function applyLayers() {
+  const on = (k) => !!layers[k];
+  utS.applyOptions({ visible: on('ut') }); vwapS.applyOptions({ visible: on('vwap') });
+  bsFastS.applyOptions({ visible: on('bs') }); bsSlowS.applyOptions({ visible: on('bs') });
+  bvS.applyOptions({ visible: on('bv') }); pLS.applyOptions({ visible: on('prob') }); pSS.applyOptions({ visible: on('prob') });
+  // the candles take over the space of every strip that is switched off
+  chart.priceScale('right').applyOptions({ scaleMargins: { top: 0.05, bottom: on('bv') && on('prob') ? 0.36 : on('bv') || on('prob') ? 0.22 : 0.05 } });
+  chart.priceScale('bv').applyOptions({ scaleMargins: on('prob') ? { top: 0.68, bottom: 0.18 } : { top: 0.82, bottom: 0 } });
+  $('layers').innerHTML = LAYERS.map(([k, name, bg]) => `<button class="chip ${on(k) ? 'on' : ''}" data-l="${k}"><i style="background:${bg}"></i>${name}</button>`).join('');
+  drawMarks();
+}
+function drawMarks() {
+  const d = chartData;
+  if (!d) return;
+  const T = (t) => t / 1000 + TZ, first = d.candles[0][0], ivMs = d.candles.length > 1 ? d.candles[1][0] - d.candles[0][0] : 1;
+  const snap = (t) => T(first + Math.floor((t - first) / ivMs) * ivMs);
+  const marks = [];
+  if (layers.ut) for (const [t, dir] of d.flips) marks.push({ time: T(t), position: dir > 0 ? 'belowBar' : 'aboveBar', color: dir > 0 ? '#22c55e88' : '#ef444488', shape: dir > 0 ? 'arrowUp' : 'arrowDown', size: 0.6 });
+  if (layers.bs) for (const [t, dir] of d.bsFlips) marks.push({ time: T(t), position: dir > 0 ? 'belowBar' : 'aboveBar', color: dir > 0 ? '#38bdf8' : '#c084fc', shape: 'circle', size: 0.5, text: dir > 0 ? 'B' : 'S' });
+  for (const s of d.signals) {
+    if (s.t >= first) marks.push({ time: snap(s.t), position: s.side > 0 ? 'belowBar' : 'aboveBar', color: s.side > 0 ? '#22c55e' : '#ef4444', shape: s.side > 0 ? 'arrowUp' : 'arrowDown', size: 2, text: s.side > 0 ? 'כניסה לונג' : 'כניסה שורט' });
+    if (s.exitT && s.exitT >= first) marks.push({ time: snap(s.exitT), position: 'aboveBar', color: '#60a5fa', shape: 'circle', size: 1, text: 'יציאה ' + sgn(s.r, 1) + 'R' });
+  }
+  marks.sort((a, b) => a.time - b.time);
+  candles.setMarkers(marks);
+}
+$('layers').onclick = (e) => {
+  const k = e.target.closest('[data-l]')?.dataset.l;
+  if (!k) return;
+  layers[k] = layers[k] ? 0 : 1;
+  try { localStorage.setItem('layers', JSON.stringify(layers)); } catch {}
+  applyLayers();
+};
+applyLayers();
+
 // Buyers vs sellers strength in percent (from Buy Sell Volume). Shows the latest bar, or the bar under the crosshair.
 function showPower(delta, t) {
   if (delta == null) return;
@@ -205,16 +268,7 @@ async function loadChart(keepView) {
   const pr = (arr) => d.candles.map((k, i) => arr[i] == null ? null : { time: T(k[0]), value: arr[i] * 100 }).filter(Boolean);
   pLS.setData(pr(d.pL)); pSS.setData(pr(d.pS));
 
-  const first = d.candles[0][0], ivMs = d.candles.length > 1 ? d.candles[1][0] - d.candles[0][0] : 1;
-  const snap = (t) => T(first + Math.floor((t - first) / ivMs) * ivMs);
-  const marks = d.flips.map(([t, dir]) => ({ time: T(t), position: dir > 0 ? 'belowBar' : 'aboveBar', color: dir > 0 ? '#22c55e88' : '#ef444488', shape: dir > 0 ? 'arrowUp' : 'arrowDown', size: 0.6 }));
-  for (const [t, dir] of d.bsFlips) marks.push({ time: T(t), position: dir > 0 ? 'belowBar' : 'aboveBar', color: dir > 0 ? '#38bdf8' : '#c084fc', shape: 'circle', size: 0.5, text: dir > 0 ? 'B' : 'S' });
-  for (const s of d.signals) {
-    if (s.t >= first) marks.push({ time: snap(s.t), position: s.side > 0 ? 'belowBar' : 'aboveBar', color: s.side > 0 ? '#22c55e' : '#ef4444', shape: s.side > 0 ? 'arrowUp' : 'arrowDown', size: 2, text: s.side > 0 ? 'כניסה לונג' : 'כניסה שורט' });
-    if (s.exitT && s.exitT >= first) marks.push({ time: snap(s.exitT), position: 'aboveBar', color: '#60a5fa', shape: 'circle', size: 1, text: 'יציאה ' + sgn(s.r, 1) + 'R' });
-  }
-  marks.sort((a, b) => a.time - b.time);
-  candles.setMarkers(marks);
+  drawMarks();
 
   priceLines.forEach((l) => candles.removePriceLine(l)); priceLines = [];
   const o = d.signals.find((s) => !s.exitT);
@@ -222,7 +276,8 @@ async function loadChart(keepView) {
     priceLines.push(candles.createPriceLine({ price, title, color, lineWidth: 1, lineStyle: 2 }));
   if (!keepView) chart.timeScale().setVisibleLogicalRange({ from: d.candles.length - 160, to: d.candles.length + 6 });
   const KN = { ut: 'UT Bot', vwap: 'VWAP', ssl: 'SSL', bs: 'Buy Sell Signal', bv: 'Buy Sell Volume' };
-  $('odds').innerHTML = d.odds ? 'סיכוי ל-TP במטבע הזה אחרי הצטלבות: ' + Object.entries(d.odds).map(([k, o]) => { const [kind, sd] = k.split(':'); return `${KN[kind]} ${sd > 0 ? 'לונג' : 'שורט'} <b class="num">${o.n ? pct(o.coinTp) : '–'}</b> <span class="num">(${o.n})</span>`; }).join(' · ') : '';
+  const oc = (o) => o ? `<td class="num">${o.n ? pct(o.coinTp) : '–'} <span class="mute">(${o.n})</span></td>` : '<td></td>';
+  $('odds').innerHTML = d.odds ? `<table><tr><th>הצטלבות</th><th>לונג (מקרים)</th><th>שורט (מקרים)</th></tr>${Object.keys(KN).map((k) => `<tr><td>${KN[k]}</td>${oc(d.odds[k + ':1'])}${oc(d.odds[k + ':-1'])}</tr>`).join('')}</table>` : 'מוצג רק בנרות שהבוט לומד מהם.';
   connectLive();
 }
 
@@ -281,12 +336,12 @@ function render() {
   // selected coin readout
   const c = state.coins.find((x) => x.s === sym);
   if (c && c.pL != null) {
-    const tag = (v, a, b) => `<b class="${v > 0 ? 'up' : 'down'}">${v > 0 ? a : b}</b>`;
+    const tag = (v, a, b) => `<b class="${v > 0 ? 'up' : 'down'}">${v > 0 ? a : b}</b>`, tile = (name, val) => `<div class="tile"><small>${name}</small>${val}</div>`;
     const trig = [...(c.tL || []), ...(c.tS || [])];
-    $('read').innerHTML = `<span>UT Bot: ${tag(c.ut, 'קנייה', 'מכירה')}</span><span>VWAP: ${tag(c.vw, 'מעל', 'מתחת')}</span><span>SSL: ${tag(c.ssl, 'ירוק', 'אדום')}</span><span>Buy Sell Signal: ${tag(c.bs, 'קנייה', 'מכירה')}</span><span>Buy Sell Volume: ${tag(c.bv, 'קונים', 'מוכרים')}</span>
-      <span>RSI: <b class="num">${c.rsi.toFixed(0)}</b></span><span>ביטחון ללונג: <b class="num up">${pct(c.pL)}</b></span><span>ביטחון לשורט: <b class="num down">${pct(c.pS)}</b></span>
-      <span class="mute">${trig.length ? 'טריגר טרי: ' + trig.join(' · ') : 'אין טריגר טרי בנר האחרון'} (לפי נרות ${ivHe(state.cfg.tf)})</span>`;
-  } else $('read').innerHTML = '<span class="mute">אין עדיין מספיק נתונים למטבע הזה</span>';
+    $('read').innerHTML = tile('UT Bot', tag(c.ut, 'קנייה', 'מכירה')) + tile('VWAP', tag(c.vw, 'מעל', 'מתחת')) + tile('SSL', tag(c.ssl, 'ירוק', 'אדום')) + tile('Buy Sell Signal', tag(c.bs, 'קנייה', 'מכירה')) + tile('Buy Sell Volume', tag(c.bv, 'קונים', 'מוכרים'))
+      + tile('RSI', `<b class="num">${c.rsi.toFixed(0)}</b>`) + tile('ביטחון ללונג', `<b class="num up">${pct(c.pL)}</b>`) + tile('ביטחון לשורט', `<b class="num down">${pct(c.pS)}</b>`)
+      + `<span class="mute wide">${trig.length ? 'טריגר טרי: ' + trig.join(' · ') : 'אין טריגר טרי בנר האחרון'} (לפי נרות ${ivHe(state.cfg.tf)})</span>`;
+  } else $('read').innerHTML = '<span class="mute wide">אין עדיין מספיק נתונים למטבע הזה</span>';
 
   // crossover feed
   const VERD = ['לא להיכנס', 'גבולי', 'כדאי להיכנס'], be = breakEven();
@@ -299,6 +354,11 @@ function render() {
       <small>במטבע הזה: ${f.n ? `<span class="num">${pct(f.coinTp)}</span> מתוך ${f.n} מקרים` : 'אין עדיין מקרים'} · בכל השוק <span class="num">${pct(f.mktTp)}</span> · מודל ${f.modelOk ? '✓' : '✗'} <span class="num">${pct(f.p)}</span> · היסטוריה ${f.statOk ? '✓' : '✗'}</small></div>`).join('')
     || `<div class="empty">${state.feedTotal ? `היו ${state.feedTotal} הצטלבויות בנר האחרון, אף אחת לא עברה את הסף.` : 'אין הצטלבויות בנר האחרון.'}</div>`;
   $('feed').insertAdjacentHTML('beforeend', `<div class="note">נקודת איזון: צריך לפגוע ב-TP בערך ב-<span class="num">${pct(be)}</span> מהמקרים כדי לא להפסיד (יעד ${state.cfg.tpAtr} ATR מול סטופ ${state.cfg.slAtr} ATR, אחרי עמלות).</div>`);
+
+  const nGood = (state.feed || []).filter((f) => f.verdict >= 1).length;
+  $('feedCnt').textContent = `${nGood} מתוך ${state.feedTotal || 0}`; $('openCnt').textContent = state.open.length || '';
+  $('tabCnt').textContent = nGood + state.open.length || '';
+  $('brainCnt').textContent = state.brain.samples.toLocaleString('en');
 
   // market-wide odds per indicator
   const KN = { ut: 'UT Bot', vwap: 'VWAP', ssl: 'SSL', bs: 'Buy Sell Signal', bv: 'Buy Sell Volume', multi: 'שניים ומעלה יחד' }, tg = state.trig || {};
@@ -327,6 +387,7 @@ function render() {
 
   // history
   const p = state.perf;
+  $('histCnt').textContent = p.n ? `${p.n} · ${sgn(p.sumR, 1)}R` : '';
   $('perf').textContent = p.n ? `${p.n} איתותים נסגרו · ${p.wins} ברווח (${Math.round(100 * p.wins / p.n)}%) · סה״כ ${sgn(p.sumR, 1)}R` : '';
   $('history').innerHTML = state.history.map((h) => `<div class="card ${h.side > 0 ? 'long' : 'short'}" data-s="${h.sym}">
       <div class="row"><b><span class="num">${h.sym.replace('USDT', '')}</span> · ${h.side > 0 ? 'לונג' : 'שורט'}</b><b class="num ${h.r > 0 ? 'up' : 'down'}">${sgn(h.r, 2)}R</b></div>
@@ -353,7 +414,7 @@ function beep(freqs) {
 function alertUser(title, body, cls, s, tones) {
   const el = document.createElement('div');
   el.className = 'toast ' + cls; el.innerHTML = `<b>${title}</b><div>${body}</div>`;
-  el.onclick = () => { select(s, state.cfg.tf); el.remove(); };
+  el.onclick = () => { select(s, state.cfg.tf); setTab('chart'); el.remove(); };
   $('toasts').append(el); setTimeout(() => el.remove(), 60000);
   beep(tones);
   if (soundOn && 'Notification' in window && Notification.permission === 'granted') new Notification(title, { body: body.replace(/<[^>]+>/g, '') });
@@ -373,13 +434,15 @@ function connectServer() {
 $('soundBtn').onclick = async () => {
   soundOn = !soundOn;
   if (soundOn) { audio ||= new AudioContext(); audio.resume(); beep([880]); if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission(); }
-  $('soundBtn').textContent = soundOn ? '🔔 צליל והתראות פועלים' : '🔕 הפעל צליל והתראות';
+  $('soundBtn').innerHTML = soundOn ? '🔔<span class="lbl"> צליל והתראות פועלים</span>' : '🔕<span class="lbl"> הפעל צליל והתראות</span>';
   $('soundBtn').classList.toggle('on', soundOn);
 };
 $('q').oninput = render; $('sort').onchange = render;
 $('ivs').onclick = (e) => e.target.dataset.iv && select(sym, e.target.dataset.iv);
 document.querySelectorAll('.fbtn').forEach((b) => b.onclick = () => { feedMin = +b.dataset.f; document.querySelectorAll('.fbtn').forEach((x) => x.classList.toggle('on', x === b)); render(); });
-for (const id of ['coins', 'open', 'history', 'feed']) $(id).onclick = (e) => { const el = e.target.closest('[data-s]'); if (el) select(el.dataset.s, id === 'coins' ? null : state.cfg.tf); };
+const setTab = (t) => { document.body.dataset.tab = t; document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); };
+$('tabs').onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.dataset.tab); };
+for (const id of ['coins', 'open', 'history', 'feed']) $(id).onclick = (e) => { const el = e.target.closest('[data-s]'); if (el) { select(el.dataset.s, id === 'coins' ? null : state.cfg.tf); setTab('chart'); } };
 refresh(); connectServer(); setInterval(refresh, 15000);
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('/sw.js').catch(() => {});
 </script>
