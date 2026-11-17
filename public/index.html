@@ -87,6 +87,10 @@
   #stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
   .stat { background: linear-gradient(180deg, var(--panel2), var(--panel)); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 8px; text-align: center; }
   .stat b { display: block; font-size: 22px; line-height: 1.15; } .stat small { color: var(--mute); font-size: 11.5px; }
+  #acc { background: linear-gradient(180deg, var(--panel2), var(--panel)); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; margin-bottom: 12px; } #acc:empty { display: none; }
+  #acc .row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; } #acc .row b { font-size: 22px; }
+  .accbar { height: 10px; border-radius: 6px; background: var(--red); overflow: hidden; margin: 8px 0; direction: rtl; } .accbar i { display: block; height: 100%; background: var(--green); border-inline-end: 2px solid var(--bg); }
+  #acc small { color: var(--mute); font-size: 11.5px; display: block; line-height: 1.6; } #acc select { padding: 1px 4px; font-size: 12px; border-radius: 6px; }
   details.sec { background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 10px; overflow: hidden; }
   details.sec > summary { padding: 12px 14px; font-size: 14px; font-weight: 600; }
   details.sec > summary .cnt { margin-inline-start: auto; font-weight: 500; font-size: 12px; color: var(--mute); background: var(--panel3); padding: 1px 9px; border-radius: 99px; } details.sec > summary .cnt:empty { background: none; }
@@ -231,6 +235,7 @@
 
   <aside id="sidePane">
     <div id="stats"></div>
+    <div id="acc"></div>
     <details class="sec" open><summary>עסקאות פתוחות<span class="cnt num" id="openCnt"></span></summary><div class="body"><div id="open"></div></div></details>
     <details class="sec" open><summary>מתגבש עכשיו<span class="cnt num" id="liveCnt"></span></summary><div class="body">
       <div id="liveFeed"></div></div></details>
@@ -399,6 +404,7 @@ function select(s, interval) {
 }
 
 // ---------- panels ----------
+const accLev = () => { try { return +localStorage.getItem('accLev') || +JSON.parse(localStorage.getItem('tradeLast') || '{}').lev || 10; } catch { return 10; } };
 const breakEven = () => { const rr = state.cfg.tpAtr / state.cfg.slAtr; return (1 + 0.1) / (1 + rr); }; // ~0.1R of fees on a typical stop
 const best = (c) => c.pL == null ? null : c.pL >= c.pS ? [1, c.pL] : [-1, c.pS];
 function render() {
@@ -467,6 +473,14 @@ function render() {
     <div class="stat"><b class="num ${lGood ? 'amb' : ''}">${lGood}</b><small>מתגבשים בסף</small></div>
     <div class="stat"><b class="num ${pf.sumR > 0 ? 'up' : pf.sumR < 0 ? 'down' : ''}">${pf.n ? sgn(pf.sumR, 1) + 'R' : '–'}</b><small>${pf.n ? `תוצאה · ${pf.wins}/${pf.n} ברווח` : 'עוד אין תוצאות'}</small></div>`;
   $('brainCnt').textContent = state.brain.samples.toLocaleString('en');
+
+  // how often the bot was right: a closed signal counts as right only if it made at least 10% on the money at the chosen leverage
+  const mv = pf.moves || [], lev = accLev(), okN = mv.filter((m) => m * lev >= 10).length, okP = mv.length ? Math.round(100 * okN / mv.length) : 0;
+  const accHtml = mv.length ? `<div class="row"><span class="up">הבוט צדק <b class="num">${okP}%</b></span><span class="down"><b class="num">${100 - okP}%</b> טעה</span></div>
+    <div class="accbar"><i style="width:${okP}%"></i></div>
+    <small>צדק = האיתות נסגר ברווח של 10% לפחות על הכסף, אחרי עמלות. פחות מזה נחשב טעות. במינוף <select id="accLev">${[1, 2, 3, 5, 10, 15, 20, 25, 50].map((v) => `<option ${v === lev ? 'selected' : ''}>${v}</option>`).join('')}</select> זה אומר תזוזה של <span class="num">${(10 / lev).toFixed(2)}%</span> במחיר. <span class="num">${okN}</span> מתוך <span class="num">${mv.length}</span> איתותים שנסגרו.</small>`
+    : '<small>אחוזי הצלחה יופיעו כאן אחרי שייסגר האיתות הראשון.</small>';
+  if ($('acc').dataset.h !== accHtml) { $('acc').dataset.h = accHtml; $('acc').innerHTML = accHtml; }
 
   // market-wide odds per indicator
   const KN = { ut: 'UT Bot', vwap: 'VWAP', ssl: 'SSL', bs: 'Buy Sell Signal', bv: 'Buy Sell Volume', multi: 'שניים ומעלה יחד' }, tg = state.trig || {};
@@ -571,6 +585,7 @@ $('soundBtn').onclick = async () => {
   $('soundBtn').innerHTML = soundOn ? '🔔<span class="lbl"> צליל והתראות פועלים</span>' : '🔕<span class="lbl"> הפעל צליל והתראות</span>';
   $('soundBtn').classList.toggle('on', soundOn);
 };
+$('acc').onchange = (e) => { if (e.target.id === 'accLev') { try { localStorage.setItem('accLev', e.target.value); } catch {} render(); } };
 $('q').oninput = render; $('sort').onchange = render;
 $('ivs').onclick = (e) => e.target.dataset.iv && select(sym, e.target.dataset.iv);
 document.querySelectorAll('.fbtn').forEach((b) => b.onclick = () => { feedMin = +b.dataset.f; document.querySelectorAll('.fbtn').forEach((x) => x.classList.toggle('on', x === b)); render(); });

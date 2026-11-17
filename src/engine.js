@@ -407,7 +407,8 @@ export class Engine extends EventEmitter {
       status: this.status,
       cfg: { tf: this.cfg.tf, minProb: this.cfg.minProb, minEv: this.cfg.minEv, minTrack: this.cfg.minTrack, minTurnover: this.cfg.minTurnover, maxOpen: this.cfg.maxOpen, slAtr: SL_ATR, tpAtr: TP_ATR, horizon: HORIZON },
       brain: { ...this.brain.stats(), weights },
-      perf: { n: h.length, wins, sumR: h.reduce((a, x) => a + x.r, 0) },
+      // moves: net price move of every closed signal in percent (after fees), so the dashboard can grade them at any leverage
+      perf: { n: h.length, wins, sumR: h.reduce((a, x) => a + x.r, 0), moves: h.map((x) => +(((x.side * (x.exit - x.entry)) / x.entry - FEE_ROUNDTRIP) * 100).toFixed(3)) },
       open: this.open.map((o) => ({ ...o, price: this.coins.get(o.sym)?.price })),
       history: h.slice(0, 60),
       feed: this.feed.slice(0, 80), feedTotal: this.feed.length,
