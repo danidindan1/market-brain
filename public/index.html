@@ -102,7 +102,8 @@
   .card::before { content: ''; position: absolute; inset: 0 0 0 auto; width: 4px; background: var(--mute); } .card.long::before { background: var(--green); } .card.short::before { background: var(--red); }
   .card .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; } .card .row + .row { margin-top: 4px; } .card small { color: var(--mute); display: block; margin-top: 5px; font-size: 11.5px; }
   .card .sym { font-size: 16px; font-weight: 700; } .side { font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 99px; margin-inline-start: 6px; } .side.l { background: #2dd4a022; color: var(--green); } .side.s { background: #ff5d6c22; color: var(--red); }
-  .card .why { color: var(--mute); font-size: 12.5px; margin-top: 2px; }
+  .card .why { color: var(--mute); font-size: 12.5px; margin-top: 2px; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+  .tm { flex: none; font-size: 10.5px; opacity: .8; white-space: nowrap; }
   .tpl { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12.5px; } .tpl b { font-size: 17px; } .tpl .mbar { flex: 1; margin: 0; height: 7px; }
   .lv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; } .lv div { background: var(--panel2); border-radius: 9px; padding: 4px 6px; text-align: center; font-size: 10.5px; color: var(--mute); } .lv b { display: block; font-size: 13px; color: var(--text); } .lv .s b { color: var(--red); } .lv .t b { color: var(--green); }
   .badge { font-size: 11.5px; padding: 2px 10px; border-radius: 99px; font-weight: 600; white-space: nowrap; } .badge.v2 { background: #2dd4a026; color: var(--green); box-shadow: inset 0 0 0 1px #2dd4a055; } .badge.v1 { background: #fbbf2422; color: var(--amber); } .badge.v0 { background: #ff5d6c1c; color: var(--red); }
@@ -267,6 +268,8 @@ const pct = (x) => (x * 100).toFixed(0) + '%';
 const sgn = (x, d = 2) => (x > 0 ? '+' : '') + x.toFixed(d);
 const sideHe = (s) => s > 0 ? 'לונג (קנייה)' : 'שורט (מכירה)';
 const timeHe = (t) => new Date(t).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+// short clock for "when did this signal arrive": time only for today, date + time otherwise
+const tmHe = (t) => { if (!t) return ''; const d = new Date(t), same = d.toDateString() === new Date().toDateString(); return d.toLocaleString('he-IL', same ? { hour: '2-digit', minute: '2-digit' } : { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
 const ivHe = (v) => (IVS.find((x) => x[0] === v) || [, v])[1];
 
 // ---------- chart ----------
@@ -450,9 +453,10 @@ function render() {
   // crossover feed
   const VERD = ['לא להיכנס', 'גבולי', 'כדאי להיכנס'], be = breakEven();
   const fl = (state.feed || []).filter((f) => f.verdict >= feedMin);
+  const tfMs = ({ D: 1440 }[state.cfg.tf] || +state.cfg.tf) * 6e4;   // a signal arrives when its candle closes
   const card = (f) => `<div class="card ${f.side > 0 ? 'long' : 'short'}" data-s="${f.sym}">
       <div class="row"><span><span class="sym num">${f.sym.replace('USDT', '')}</span><span class="side ${f.side > 0 ? 'l' : 's'}">${f.side > 0 ? 'לונג' : 'שורט'}</span></span><span class="badge v${f.verdict}">${f.live ? 'אם ייסגר כך: ' : ''}${VERD[f.verdict]}</span></div>
-      <div class="why">${f.reasons.join(' + ')}</div>
+      <div class="why"><span>${f.reasons.join(' + ')}</span><span class="tm num" title="${f.live ? 'עודכן לאחרונה' : 'שעת קבלת האיתות'}">${tmHe(f.live ? state.live.t : f.barT + tfMs)}</span></div>
       <div class="tpl"><span>סיכוי ל-TP</span><b class="num ${f.tpProb >= be ? 'up' : 'down'}">${pct(f.tpProb)}</b><div class="mbar" title="הקו הלבן: נקודת האיזון"><i class="${f.tpProb >= be ? 'g' : 'r'}" style="width:${Math.min(100, f.tpProb * 125)}%"></i><u style="left:${be * 125}%"></u></div><span class="mute">צפי <span class="num">${sgn(f.expR, 2)}R</span></span></div>
       <div class="lv"><div>כניסה<b class="num">${fmtP(f.entry)}</b></div><div class="s">סטופ (SL) <span class="num">${sgn(f.side * (f.sl - f.entry) / f.entry * 100, 1)}%</span><b class="num">${fmtP(f.sl)}</b></div><div class="t">יעד (TP) <span class="num">${sgn(f.side * (f.tp - f.entry) / f.entry * 100, 1)}%</span><b class="num">${fmtP(f.tp)}</b></div></div>
       <button class="enter" data-enter="${f.sym}|${f.side}|${f.entry}">נכנסתי לעסקה</button>
@@ -497,7 +501,8 @@ function render() {
       <div class="row"><span><span class="sym num">${o.sym.replace('USDT', '')}</span><span class="side ${o.side > 0 ? 'l' : 's'}">${o.side > 0 ? 'לונג' : 'שורט'}</span></span><b class="num ${r >= 0 ? 'up' : 'down'}" style="font-size:17px">${sgn(r, 2)}R</b></div>
       <div class="lv"><div>כניסה<b class="num">${fmtP(o.entry)}</b></div><div class="s">סטופ (SL) <span class="num">${sgn(o.side * (o.sl - o.entry) / o.entry * 100, 1)}%</span><b class="num">${fmtP(o.sl)}</b></div><div class="t">יעד (TP) <span class="num">${sgn(o.side * (o.tp - o.entry) / o.entry * 100, 1)}%</span><b class="num">${fmtP(o.tp)}</b></div></div>
       <button class="enter" data-enter="${o.sym}|${o.side}|${o.entry}">נכנסתי לעסקה</button>
-      <small>עכשיו <span class="num">${fmtP(o.price)}</span> · ${o.reasons.join(' · ')}${o.tpProb ? ' · סיכוי ל-TP ' + pct(o.tpProb) : ''} · ${timeHe(o.t)}</small></div>`;
+      <div class="why"><span>${o.reasons.join(' + ')}</span><span class="tm num" title="שעת קבלת האיתות">${tmHe(o.t)}</span></div>
+      <small>עכשיו <span class="num">${fmtP(o.price)}</span>${o.tpProb ? ' · סיכוי ל-TP ' + pct(o.tpProb) : ''}</small></div>`;
   }).join('') || '<div class="empty">אין כרגע עסקה פתוחה. הבוט מחכה לאיתות שעומד בתנאים.</div>';
 
   // brain
@@ -516,7 +521,8 @@ function render() {
   $('perf').textContent = p.n ? `${p.n} איתותים נסגרו · ${p.wins} ברווח (${Math.round(100 * p.wins / p.n)}%) · סה״כ ${sgn(p.sumR, 1)}R` : '';
   $('history').innerHTML = state.history.map((h) => `<div class="card ${h.side > 0 ? 'long' : 'short'}" data-s="${h.sym}">
       <div class="row"><span><span class="sym num">${h.sym.replace('USDT', '')}</span><span class="side ${h.side > 0 ? 'l' : 's'}">${h.side > 0 ? 'לונג' : 'שורט'}</span></span><b class="num ${h.r > 0 ? 'up' : 'down'}">${sgn(h.r, 2)}R</b></div>
-      <small>${h.reason} · <span class="num">${fmtP(h.entry)} → ${fmtP(h.exit)}</span> · ${timeHe(h.exitT)}</small></div>`).join('') || '<div class="empty">עוד לא נסגרו איתותים.</div>';
+      <div class="why"><span>${h.reason}</span><span class="tm num" title="שעת קבלת האיתות">${tmHe(h.t)}</span></div>
+      <small><span class="num">${fmtP(h.entry)} → ${fmtP(h.exit)}</span> · נסגר ${timeHe(h.exitT)}</small></div>`).join('') || '<div class="empty">עוד לא נסגרו איתותים.</div>';
 }
 
 async function refresh() {
