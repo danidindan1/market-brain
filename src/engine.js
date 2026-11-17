@@ -378,12 +378,14 @@ export class Engine extends EventEmitter {
     const ind = computeIndicators(c);
     const from = Math.max(0, c.length - 700);
     const withProb = interval === this.cfg.tf;
-    const out = { sym, interval, candles: [], vwap: [], ut: [], utDir: [], flips: [], pL: [], pS: [] };
+    const out = { sym, interval, candles: [], vwap: [], ut: [], utDir: [], flips: [], pL: [], pS: [], bsFast: [], bsSlow: [], bsFlips: [], bv: [] };
     for (let i = from; i < c.length; i++) {
       const k = c[i];
       out.candles.push([k.t, k.o, k.h, k.l, k.c, k.v]);
       out.vwap.push(ind.vwap[i]); out.ut.push(ind.utTrail[i]); out.utDir.push(ind.utDir[i]);
       if (i > from && ind.utAge[i] === 0) out.flips.push([k.t, ind.utDir[i]]);
+      out.bsFast.push(ind.bsFast[i]); out.bsSlow.push(ind.bsSlow[i]); out.bv.push(ind.bvDelta[i]);
+      if (i > from && ind.bsAge[i] === 0) out.bsFlips.push([k.t, ind.bsDir[i]]);
       if (withProb && i >= WARMUP) {
         const btc = this.btcCtx.get(k.t) || this.btcLast;
         out.pL.push(this.brain.predict(sym, features(ind, c, i, 1, btc)));

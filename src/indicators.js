@@ -18,8 +18,8 @@ export function computeIndicators(c) {
   const atr = F(), atrUt = F(), utTrail = F(), vwap = F(), sslUp = F(), sslDown = F(), rsi = F(), ema = F(), volZ = F();
   const utDir = new Int8Array(n), vwapSide = new Int8Array(n), sslDir = new Int8Array(n);
   const utAge = new Int32Array(n), vwapAge = new Int32Array(n), sslAge = new Int32Array(n);
-  const bsDir = new Int8Array(n), bvDir = new Int8Array(n), bsAge = new Int32Array(n), bvAge = new Int32Array(n), bvDelta = F();
-  if (!n) return { atr, utTrail, utDir, utAge, vwap, vwapSide, vwapAge, sslUp, sslDown, sslDir, sslAge, rsi, ema, volZ, bsDir, bsAge, bvDir, bvAge, bvDelta };
+  const bsDir = new Int8Array(n), bvDir = new Int8Array(n), bsAge = new Int32Array(n), bvAge = new Int32Array(n), bvDelta = F(), bsFast = F(), bsSlow = F();
+  if (!n) return { atr, utTrail, utDir, utAge, vwap, vwapSide, vwapAge, sslUp, sslDown, sslDir, sslAge, rsi, ema, volZ, bsDir, bsAge, bsFast, bsSlow, bvDir, bvAge, bvDelta };
 
   let cumPV = 0, cumV = 0, day = -1;
   let avgGain = 0, avgLoss = 0;
@@ -80,6 +80,7 @@ export function computeIndicators(c) {
     // Buy Sell Signal: fast EMA above slow EMA = buy, below = sell; the flip is the signal
     emaF = p ? emaF + kF * (k.c - emaF) : k.c;
     emaS = p ? emaS + kS * (k.c - emaS) : k.c;
+    bsFast[i] = emaF; bsSlow[i] = emaS;
     bsDir[i] = emaF > emaS ? 1 : emaF < emaS ? -1 : (p ? bsDir[i - 1] : 1);
     bsAge[i] = p && bsDir[i] === bsDir[i - 1] ? bsAge[i - 1] + 1 : (p ? 0 : 99);
 
@@ -101,7 +102,7 @@ export function computeIndicators(c) {
       volZ[i] = (lv[i] - mean) / (sd + 0.05);
     }
   }
-  return { atr, utTrail, utDir, utAge, vwap, vwapSide, vwapAge, sslUp, sslDown, sslDir, sslAge, rsi, ema, volZ, bsDir, bsAge, bvDir, bvAge, bvDelta };
+  return { atr, utTrail, utDir, utAge, vwap, vwapSide, vwapAge, sslUp, sslDown, sslDir, sslAge, rsi, ema, volZ, bsDir, bsAge, bsFast, bsSlow, bvDir, bvAge, bvDelta };
 }
 
 export const FEATURE_NAMES = [

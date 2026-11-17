@@ -109,6 +109,8 @@
       <span><i style="background:#f59e0b"></i>VWAP</span>
       <span><i style="background:#22c55e"></i><i style="background:#ef4444"></i>קו UT Bot</span>
       <span>▲▼ היפוך UT Bot</span>
+      <span><i style="background:#38bdf8"></i><i style="background:#c084fc"></i>Buy Sell Signal (קווים, B = קנייה, S = מכירה)</span>
+      <span><i style="background:#22c55e99"></i><i style="background:#ef444499"></i>Buy Sell Volume – עמודות: קונים מול מוכרים</span>
       <span><i style="background:#22c55e88"></i><i style="background:#ef444488"></i>ביטחון המודל ללונג / שורט (בתחתית הגרף)</span>
     </div>
   </div>
@@ -145,7 +147,7 @@ const chart = LightweightCharts.createChart($('chart'), {
   layout: { background: { color: '#0b0e14' }, textColor: '#8b93a7' },
   grid: { vertLines: { color: '#161b27' }, horzLines: { color: '#161b27' } },
   timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#252c3d' },
-  rightPriceScale: { borderColor: '#252c3d', scaleMargins: { top: 0.06, bottom: 0.24 } },
+  rightPriceScale: { borderColor: '#252c3d', scaleMargins: { top: 0.05, bottom: 0.36 } },
   crosshair: { mode: 0 }, autoSize: true,
 });
 const candles = chart.addCandlestickSeries({ upColor: '#22c55e', downColor: '#ef4444', wickUpColor: '#22c55e', wickDownColor: '#ef4444', borderVisible: false });
@@ -154,7 +156,12 @@ const utS = chart.addLineSeries({ lineWidth: 2, priceLineVisible: false, lastVal
 const probOpts = { priceScaleId: 'prob', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, priceFormat: { type: 'percent' } };
 const pLS = chart.addLineSeries({ ...probOpts, color: '#22c55e99' });
 const pSS = chart.addLineSeries({ ...probOpts, color: '#ef444499' });
-chart.priceScale('prob').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 }, visible: false });
+chart.priceScale('prob').applyOptions({ scaleMargins: { top: 0.84, bottom: 0 }, visible: false });
+const bsOpts = { lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false };
+const bsFastS = chart.addLineSeries({ ...bsOpts, color: '#38bdf8' });
+const bsSlowS = chart.addLineSeries({ ...bsOpts, color: '#c084fc' });
+const bvS = chart.addHistogramSeries({ priceScaleId: 'bv', priceLineVisible: false, lastValueVisible: false, priceFormat: { type: 'percent' } });
+chart.priceScale('bv').applyOptions({ scaleMargins: { top: 0.68, bottom: 0.18 }, visible: false });
 
 async function loadChart(keepView) {
   const want = sym + '|' + iv;
@@ -169,12 +176,16 @@ async function loadChart(keepView) {
   candles.setData(d.candles.map((k) => ({ time: T(k[0]), open: k[1], high: k[2], low: k[3], close: k[4] })));
   vwapS.setData(d.candles.map((k, i) => ({ time: T(k[0]), value: d.vwap[i] })));
   utS.setData(d.candles.map((k, i) => ({ time: T(k[0]), value: d.ut[i], color: d.utDir[i] > 0 ? '#22c55e' : '#ef4444' })));
+  bsFastS.setData(d.candles.map((k, i) => ({ time: T(k[0]), value: d.bsFast[i] })));
+  bsSlowS.setData(d.candles.map((k, i) => ({ time: T(k[0]), value: d.bsSlow[i] })));
+  bvS.setData(d.candles.map((k, i) => ({ time: T(k[0]), value: d.bv[i] * 100, color: d.bv[i] >= 0 ? '#22c55e99' : '#ef444499' })));
   const pr = (arr) => d.candles.map((k, i) => arr[i] == null ? null : { time: T(k[0]), value: arr[i] * 100 }).filter(Boolean);
   pLS.setData(pr(d.pL)); pSS.setData(pr(d.pS));
 
   const first = d.candles[0][0], ivMs = d.candles.length > 1 ? d.candles[1][0] - d.candles[0][0] : 1;
   const snap = (t) => T(first + Math.floor((t - first) / ivMs) * ivMs);
   const marks = d.flips.map(([t, dir]) => ({ time: T(t), position: dir > 0 ? 'belowBar' : 'aboveBar', color: dir > 0 ? '#22c55e88' : '#ef444488', shape: dir > 0 ? 'arrowUp' : 'arrowDown', size: 0.6 }));
+  for (const [t, dir] of d.bsFlips) marks.push({ time: T(t), position: dir > 0 ? 'belowBar' : 'aboveBar', color: dir > 0 ? '#38bdf8' : '#c084fc', shape: 'circle', size: 0.5, text: dir > 0 ? 'B' : 'S' });
   for (const s of d.signals) {
     if (s.t >= first) marks.push({ time: snap(s.t), position: s.side > 0 ? 'belowBar' : 'aboveBar', color: s.side > 0 ? '#22c55e' : '#ef4444', shape: s.side > 0 ? 'arrowUp' : 'arrowDown', size: 2, text: s.side > 0 ? 'כניסה לונג' : 'כניסה שורט' });
     if (s.exitT && s.exitT >= first) marks.push({ time: snap(s.exitT), position: 'aboveBar', color: '#60a5fa', shape: 'circle', size: 1, text: 'יציאה ' + sgn(s.r, 1) + 'R' });
