@@ -263,8 +263,24 @@ export class Engine extends EventEmitter {
   // alert, so the dashboard shows crossovers as they take shape. This is a preview only: a forming bar
   // can still change, so nothing is learned from it and no signal is opened before the bar closes.
   async liveLoop() {
-    try { if (this.status.phase === 'live' && !this.scanning) await this.liveScan(); } catch (e) { console.error('live scan:', e.message); }
+    try { if (this.status.phase === 'live' && !this.scanning) { await this.liveScan(); await this.gradeShort(); } } catch (e) { console.error('live scan:', e.message); }
     setTimeout(() => this.liveLoop(), 15000);
+  }
+
+  // Short-trade report card: for every signal, what the price did minute by minute in the 15 minutes after
+  // the entry. Stored once per signal as [best move in favour %, worst move against %] per minute.
+  async gradeShort() {
+    const now = Date.now();
+    for (const sig of [...this.open, ...this.history]) {
+      if (sig.s15 || !sig.barT) continue;
+      const t0 = sig.barT + this.tfMs;                 // the signal fires when its bar closes
+      if (t0 + 15 * 6e4 > now) continue;
+      try {
+        const c = (await getKlines(sig.sym, '1', 15, t0 + 15 * 6e4 - 1)).filter((k) => k.t >= t0);
+        const p = (x) => +((x / sig.entry) * 100).toFixed(3);
+        sig.s15 = c.map((k) => (sig.side > 0 ? [p(k.h - sig.entry), p(sig.entry - k.l)] : [p(sig.entry - k.l), p(k.h - sig.entry)]));
+      } catch { /* try again on the next round */ }
+    }
   }
 
   async liveCalc(coin) {
@@ -408,9 +424,10 @@ export class Engine extends EventEmitter {
       cfg: { tf: this.cfg.tf, minProb: this.cfg.minProb, minEv: this.cfg.minEv, minTrack: this.cfg.minTrack, minTurnover: this.cfg.minTurnover, maxOpen: this.cfg.maxOpen, slAtr: SL_ATR, tpAtr: TP_ATR, horizon: HORIZON },
       brain: { ...this.brain.stats(), weights },
       // moves: net price move of every closed signal in percent (after fees), so the dashboard can grade them at any leverage
-      perf: { n: h.length, wins, sumR: h.reduce((a, x) => a + x.r, 0), moves: h.map((x) => +(((x.side * (x.exit - x.entry)) / x.entry - FEE_ROUNDTRIP) * 100).toFixed(3)) },
-      open: this.open.map((o) => ({ ...o, price: this.coins.get(o.sym)?.price })),
-      history: h.slice(0, 60),
+      perf: { n: h.length, wins, sumR: h.reduce((a, x) => a + x.r, 0), moves: h.map((x) => +(((x.side * (x.exit - x.entry)) / x.entry - FEE_ROUNDTRIP) * 100).toFixed(3)),
+        short: [...this.open, ...h].filter((x) => x.s15).map((x) => x.s15), fee: FEE_ROUNDTRIP * 100 },
+      open: this.open.map(({ s15, ...o }) => ({ ...o, price: this.coins.get(o.sym)?.price })),
+      history: h.slice(0, 60).map(({ s15, ...x }) => x),
       feed: this.feed.slice(0, 80), feedTotal: this.feed.length,
       live: { t: this.liveT, feed: this.liveFeed.slice(0, 80), total: this.liveFeed.length },
       trig: Object.fromEntries(Object.entries(this.trig).map(([k, v]) => [k, { n: v.n, tp: v.tp / v.n, sl: v.sl / v.n, r: v.r / v.n }])),

@@ -474,12 +474,15 @@ function render() {
     <div class="stat"><b class="num ${pf.sumR > 0 ? 'up' : pf.sumR < 0 ? 'down' : ''}">${pf.n ? sgn(pf.sumR, 1) + 'R' : '–'}</b><small>${pf.n ? `תוצאה · ${pf.wins}/${pf.n} ברווח` : 'עוד אין תוצאות'}</small></div>`;
   $('brainCnt').textContent = state.brain.samples.toLocaleString('en');
 
-  // how often the bot was right: a closed signal counts as right only if it made at least 10% on the money at the chosen leverage
-  const mv = pf.moves || [], lev = accLev(), okN = mv.filter((m) => m * lev >= 10).length, okP = mv.length ? Math.round(100 * okN / mv.length) : 0;
-  const accHtml = mv.length ? `<div class="row"><span class="up">הבוט צדק <b class="num">${okP}%</b></span><span class="down"><b class="num">${100 - okP}%</b> טעה</span></div>
+  // how often the bot was right, graded as a short trade: within 15 minutes of the signal the price must reach
+  // +10% on the money at the chosen leverage (fees included) before a move against it big enough to liquidate
+  const sh = pf.short || [], lev = accLev(), need = 10 / lev + (pf.fee || 0.11), liq = 95 / lev;
+  const hit = (path) => { for (const [fav, adv] of path) { if (adv >= liq) return false; if (fav >= need) return true; } return false; };
+  const okN = sh.filter(hit).length, okP = sh.length ? Math.round(100 * okN / sh.length) : 0;
+  const accHtml = sh.length ? `<div class="row"><span class="up">הבוט צדק <b class="num">${okP}%</b></span><span class="down"><b class="num">${100 - okP}%</b> טעה</span></div>
     <div class="accbar"><i style="width:${okP}%"></i></div>
-    <small>צדק = האיתות נסגר ברווח של 10% לפחות על הכסף, אחרי עמלות. פחות מזה נחשב טעות. במינוף <select id="accLev">${[1, 2, 3, 5, 10, 15, 20, 25, 50].map((v) => `<option ${v === lev ? 'selected' : ''}>${v}</option>`).join('')}</select> זה אומר תזוזה של <span class="num">${(10 / lev).toFixed(2)}%</span> במחיר. <span class="num">${okN}</span> מתוך <span class="num">${mv.length}</span> איתותים שנסגרו.</small>`
-    : '<small>אחוזי הצלחה יופיעו כאן אחרי שייסגר האיתות הראשון.</small>';
+    <small>נבדק כעסקה קצרה: צדק = בתוך 15 דקות מהאיתות המחיר הגיע לרווח של 10% על הכסף, אחרי עמלות. לא הגיע בזמן, או הגיע קודם לחיסול = טעות. במינוף <select id="accLev">${[1, 2, 3, 5, 10, 15, 20, 25, 50, 75, 100].map((v) => `<option ${v === lev ? 'selected' : ''}>${v}</option>`).join('')}</select> צריך תזוזה של <span class="num">${need.toFixed(2)}%</span> במחיר. <span class="num">${okN}</span> מתוך <span class="num">${sh.length}</span> איתותים.</small>`
+    : '<small>אחוזי ההצלחה לעסקאות קצרות יופיעו כאן 15 דקות אחרי האיתות הראשון.</small>';
   if ($('acc').dataset.h !== accHtml) { $('acc').dataset.h = accHtml; $('acc').innerHTML = accHtml; }
 
   // market-wide odds per indicator
