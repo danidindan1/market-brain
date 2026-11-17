@@ -112,6 +112,27 @@
   .toast.long { border-inline-start-color: var(--green); } .toast.short { border-inline-start-color: var(--red); }
   @keyframes toastIn { from { opacity: 0; transform: translateY(14px); } }
   #tabs { display: none; }
+  /* my trades: pinned under the header on every screen */
+  #myTrades { flex: none; max-height: 46dvh; overflow-y: auto; padding: 0 10px; } #myTrades:empty { display: none; }
+  .trade { position: relative; margin: 8px 0; padding: 10px 12px; border-radius: var(--r); background: linear-gradient(180deg, #17223a, var(--panel)); border: 1px solid #2c3a5c; cursor: pointer; }
+  .trade.l1 { border-color: var(--amber); } .trade.l2 { border-color: var(--red); box-shadow: 0 0 0 1px var(--red), 0 0 24px #ff5d6c33; } .trade.l2.win { border-color: var(--green); box-shadow: 0 0 0 1px var(--green), 0 0 24px #2dd4a033; }
+  .trade .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; } .trade .sym { font-size: 17px; font-weight: 700; } .trade .roi { font-size: 22px; font-weight: 700; }
+  .beat { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--green); margin-inline-end: 7px; animation: beat 1s infinite; } .beat.r { background: var(--red); }
+  @keyframes beat { 0% { box-shadow: 0 0 0 0 currentColor; transform: scale(1); } 30% { transform: scale(1.35); } 100% { box-shadow: 0 0 0 9px transparent; transform: scale(1); } } .beat { color: #2dd4a0aa; } .beat.r { color: #ff5d6caa; }
+  .tbar { position: relative; height: 8px; border-radius: 4px; background: var(--panel3); margin: 9px 0 4px; direction: ltr; } .tbar i { position: absolute; top: 0; bottom: 0; border-radius: 4px; } .tbar u { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); opacity: .7; } .tbar s { position: absolute; top: -4px; width: 12px; height: 16px; margin-left: -6px; border-radius: 4px; background: var(--text); box-shadow: 0 0 0 2px var(--bg); }
+  .tends { display: flex; justify-content: space-between; font-size: 11px; color: var(--mute); direction: ltr; }
+  .tinfo { font-size: 12px; color: var(--mute); margin-top: 6px; } .tinfo b { color: var(--text); font-weight: 500; }
+  .adv { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; font-size: 12.5px; } .adv .badge { flex: none; } .badge.a0 { background: #2dd4a026; color: var(--green); } .badge.a1 { background: #fbbf2426; color: var(--amber); } .badge.a2 { background: var(--red); color: #fff; animation: blink 1s infinite; } .win .badge.a2 { background: var(--green); color: #04130d; }
+  @keyframes blink { 50% { opacity: .55; } }
+  .trade .x { margin-top: 8px; width: 100%; padding: 6px; font-size: 12.5px; background: var(--panel3); }
+  .enter { margin-top: 8px; width: 100%; padding: 7px; font-size: 13px; font-weight: 600; background: #17305a; border-color: #2c4f8a; } .enter:hover { background: #1d3d73; }
+  #enterBtn { padding: 5px 12px; font-size: 12.5px; font-weight: 600; background: #17305a; border-color: #2c4f8a; border-radius: 99px; align-self: center; }
+  .coin.pin { background: #17223a; }
+  dialog { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 18px; padding: 16px; width: min(400px, calc(100vw - 24px)); } dialog::backdrop { background: #000a; backdrop-filter: blur(3px); }
+  dialog h3 { margin: 0 0 12px; font-size: 17px; } dialog label { display: block; font-size: 12.5px; color: var(--mute); margin: 10px 0 4px; } dialog input { width: 100%; font-size: 16px; direction: ltr; text-align: left; }
+  .sideSel { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } .sideSel button { padding: 9px; font-weight: 600; } .sideSel button.on[data-side="1"] { background: #2dd4a026; border-color: var(--green); color: var(--green); } .sideSel button.on[data-side="-1"] { background: #ff5d6c22; border-color: var(--red); color: var(--red); }
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } #dCalc { margin-top: 12px; padding: 10px; border-radius: 12px; background: var(--panel); font-size: 12.5px; line-height: 1.7; } #dCalc b { font-weight: 600; }
+  .dbtns { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-top: 14px; } .dbtns .ok { background: var(--green); color: #04130d; border: 0; font-weight: 700; padding: 10px; }
 
   #splash { position: fixed; inset: 0; z-index: 99; background: #000; display: flex; align-items: flex-end; justify-content: center; transition: opacity .5s; }
   #splash img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 60%; }
@@ -155,6 +176,16 @@
   <span class="spacer"></span>
   <button id="soundBtn">🔕<span class="lbl"> הפעל צליל והתראות</span></button>
 </header>
+<div id="myTrades"></div>
+<dialog id="dlg"><form method="dialog" id="dForm">
+  <h3>נכנסתי לעסקה · <span id="dSym" class="num"></span></h3>
+  <div class="sideSel"><button type="button" data-side="1">לונג (קנייה)</button><button type="button" data-side="-1">שורט (מכירה)</button></div>
+  <label>מחיר הכניסה שלי</label><input id="dEntry" inputmode="decimal" autocomplete="off">
+  <div class="g2"><div><label>מינוף (×)</label><input id="dLev" inputmode="decimal" autocomplete="off"></div><div><label>כמה אחוזי רווח אני רוצה</label><input id="dPct" inputmode="decimal" autocomplete="off"></div></div>
+  <label>סטופ (SL) – אפשר לשנות</label><input id="dSl" inputmode="decimal" autocomplete="off">
+  <div id="dCalc"></div>
+  <div class="dbtns"><button type="button" class="ok" id="dOk">התחל מעקב</button><button type="button" id="dCancel">ביטול</button></div>
+</form></dialog>
 <main>
   <aside id="coinsPane">
     <div class="tools">
@@ -171,6 +202,7 @@
       <h2 id="symTitle" class="num">BTCUSDT</h2>
       <span id="symPrice" class="num"></span>
       <span class="spacer"></span>
+      <button id="enterBtn">＋ נכנסתי לעסקה</button>
       <span id="ivs"></span>
     </div>
     <div id="pulseCard">
@@ -382,11 +414,13 @@ function render() {
   let list = state.coins.filter((c) => !q || c.s.includes(q));
   const key = { conf: (c) => best(c)?.[1] ?? -1, to: (c) => c.to || 0, chg: (c) => c.chg ?? -999, trig: (c) => ((c.tL?.length || 0) + (c.tS?.length || 0)) * 10 + (best(c)?.[1] ?? 0) }[sort];
   list.sort((a, b) => key(b) - key(a));
+  const pinned = new Set(trades.map((t) => t.sym));
+  list.sort((a, b) => pinned.has(b.s) - pinned.has(a.s));   // coins I am in stay on top
   const dot = (v) => `<span class="dot ${v > 0 ? 'g' : v < 0 ? 'r' : ''}"></span>`;
   $('coins').innerHTML = list.slice(0, 250).map((c) => {
     const b = best(c), trig = c.tL?.length ? 1 : c.tS?.length ? -1 : 0;
-    return `<div class="coin ${c.s === sym ? 'sel' : ''}" data-s="${c.s}">
-      <span><b class="num">${c.s.replace('USDT', '')}</b> ${trig ? `<span class="${trig > 0 ? 'up' : 'down'}">●</span>` : ''}</span>
+    return `<div class="coin ${c.s === sym ? 'sel' : ''} ${pinned.has(c.s) ? 'pin' : ''}" data-s="${c.s}">
+      <span>${pinned.has(c.s) ? '<i class="beat"></i>' : ''}<b class="num">${c.s.replace('USDT', '')}</b> ${trig ? `<span class="${trig > 0 ? 'up' : 'down'}">●</span>` : ''}</span>
       <span class="num">${fmtP(c.price)}</span>
       <small><span class="dots" title="UT Bot · VWAP · SSL · Buy Sell Signal · Buy Sell Volume">${dot(c.ut)}${dot(c.vw)}${dot(c.ssl)}${dot(c.bs)}${dot(c.bv)}</span> <span class="num ${c.chg >= 0 ? 'up' : 'down'}">${c.chg == null ? '' : sgn(c.chg, 1) + '%'}</span></small>
       <span class="conf num ${b ? (b[0] > 0 ? 'up' : 'down') : 'mute'}">${b ? (b[0] > 0 ? 'L ' : 'S ') + pct(b[1]) : '–'}</span>
@@ -414,7 +448,8 @@ function render() {
       <div class="row"><span><span class="sym num">${f.sym.replace('USDT', '')}</span><span class="side ${f.side > 0 ? 'l' : 's'}">${f.side > 0 ? 'לונג' : 'שורט'}</span></span><span class="badge v${f.verdict}">${f.live ? 'אם ייסגר כך: ' : ''}${VERD[f.verdict]}</span></div>
       <div class="why">${f.reasons.join(' + ')}</div>
       <div class="tpl"><span>סיכוי ל-TP</span><b class="num ${f.tpProb >= be ? 'up' : 'down'}">${pct(f.tpProb)}</b><div class="mbar" title="הקו הלבן: נקודת האיזון"><i class="${f.tpProb >= be ? 'g' : 'r'}" style="width:${Math.min(100, f.tpProb * 125)}%"></i><u style="left:${be * 125}%"></u></div><span class="mute">צפי <span class="num">${sgn(f.expR, 2)}R</span></span></div>
-      <div class="lv"><div>כניסה<b class="num">${fmtP(f.entry)}</b></div><div class="s">סטופ<b class="num">${fmtP(f.sl)}</b></div><div class="t">יעד<b class="num">${fmtP(f.tp)}</b></div></div>
+      <div class="lv"><div>כניסה<b class="num">${fmtP(f.entry)}</b></div><div class="s">סטופ (SL) <span class="num">${sgn(f.side * (f.sl - f.entry) / f.entry * 100, 1)}%</span><b class="num">${fmtP(f.sl)}</b></div><div class="t">יעד (TP) <span class="num">${sgn(f.side * (f.tp - f.entry) / f.entry * 100, 1)}%</span><b class="num">${fmtP(f.tp)}</b></div></div>
+      <button class="enter" data-enter="${f.sym}|${f.side}|${f.entry}">נכנסתי לעסקה</button>
       <small>במטבע הזה: ${f.n ? `<span class="num">${pct(f.coinTp)}</span> מתוך ${f.n} מקרים` : 'אין עדיין מקרים'} · בכל השוק <span class="num">${pct(f.mktTp)}</span> · מודל ${f.modelOk ? '✓' : '✗'} <span class="num">${pct(f.p)}</span> · היסטוריה ${f.statOk ? '✓' : '✗'}</small></div>`;
   const lf = (state.live?.feed || []).filter((f) => f.verdict >= feedMin), lGood = (state.live?.feed || []).filter((f) => f.verdict >= 1).length;
   $('liveCnt').textContent = state.live?.t ? `${lGood} מתוך ${state.live.total}` : '';
@@ -443,7 +478,8 @@ function render() {
     const risk = Math.abs(o.entry - o.sl), r = o.price ? o.side * (o.price - o.entry) / risk : 0;
     return `<div class="card ${o.side > 0 ? 'long' : 'short'}" data-s="${o.sym}">
       <div class="row"><span><span class="sym num">${o.sym.replace('USDT', '')}</span><span class="side ${o.side > 0 ? 'l' : 's'}">${o.side > 0 ? 'לונג' : 'שורט'}</span></span><b class="num ${r >= 0 ? 'up' : 'down'}" style="font-size:17px">${sgn(r, 2)}R</b></div>
-      <div class="lv"><div>כניסה<b class="num">${fmtP(o.entry)}</b></div><div class="s">סטופ<b class="num">${fmtP(o.sl)}</b></div><div class="t">יעד<b class="num">${fmtP(o.tp)}</b></div></div>
+      <div class="lv"><div>כניסה<b class="num">${fmtP(o.entry)}</b></div><div class="s">סטופ (SL) <span class="num">${sgn(o.side * (o.sl - o.entry) / o.entry * 100, 1)}%</span><b class="num">${fmtP(o.sl)}</b></div><div class="t">יעד (TP) <span class="num">${sgn(o.side * (o.tp - o.entry) / o.entry * 100, 1)}%</span><b class="num">${fmtP(o.tp)}</b></div></div>
+      <button class="enter" data-enter="${o.sym}|${o.side}|${o.entry}">נכנסתי לעסקה</button>
       <small>עכשיו <span class="num">${fmtP(o.price)}</span> · ${o.reasons.join(' · ')}${o.tpProb ? ' · סיכוי ל-TP ' + pct(o.tpProb) : ''} · ${timeHe(o.t)}</small></div>`;
   }).join('') || '<div class="empty">אין כרגע עסקה פתוחה. הבוט מחכה לאיתות שעומד בתנאים.</div>';
 
@@ -541,6 +577,121 @@ document.querySelectorAll('.fbtn').forEach((b) => b.onclick = () => { feedMin = 
 const setTab = (t) => { document.body.dataset.tab = t; document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); };
 $('tabs').onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.dataset.tab); };
 for (const id of ['coins', 'open', 'history', 'feed', 'liveFeed']) $(id).onclick = (e) => { const el = e.target.closest('[data-s]'); if (el) { select(el.dataset.s, id === 'coins' ? null : state.cfg.tf); setTab('chart'); } };
+// ---------- my trades: the user says "I entered", the app pins the trade on top and watches it ----------
+// Kept on this device only (localStorage). Exit hints are rules of thumb on 1-minute candles for short
+// 5-10 minute trades; they were not tested statistically and are not advice.
+let trades = [], track = {}, dlgT = null;
+try { trades = JSON.parse(localStorage.getItem('trades') || '[]'); } catch {}
+const saveTrades = () => { try { localStorage.setItem('trades', JSON.stringify(trades)); } catch {} };
+const num = (v) => parseFloat(String(v).replace(',', '.'));
+const tpOf = (t) => t.entry * (1 + t.side * t.pct / t.lev / 100);
+const liqOf = (t) => t.entry * (1 - t.side * 0.95 / t.lev);   // rough: ignores fees, funding and the exchange's exact maintenance margin
+
+function advise(t, d) {
+  const price = d.price, move = t.side * (price - t.entry) / t.entry * 100, roi = move * t.lev, mins = (Date.now() - t.t0) / 6e4, m = d.m1;
+  const utBad = m.ut === -t.side, bsBad = m.bs === -t.side, powBad = t.side * m.bv < -0.05, bad = [utBad && 'UT Bot', bsBad && 'Buy Sell Signal', powBad && 'כוח הקונים/מוכרים'].filter(Boolean);
+  let level = 0, why = bad.length ? `בנר של דקה ${bad.join(' ו-')} נגדך, השאר עדיין איתך.` : 'בנר של דקה כל הסימנים עדיין איתך.', win = false;
+  if (roi >= t.pct) { level = 2; win = true; why = `הגעת ליעד שקבעת (${t.pct}%).`; }
+  else if (t.sl && t.side * (price - t.sl) <= 0) { level = 2; why = 'המחיר הגיע לסטופ שקבעת.'; }
+  else if (bad.length === 3) { level = 2; why = 'בנר של דקה שלושת הסימנים התהפכו נגדך (UT Bot, Buy Sell Signal וכוח הקונים/מוכרים).'; }
+  else if (mins >= 10 && roi <= 0) { level = 2; why = 'עברו 10 דקות והעסקה לא ברווח. חלון העסקה הקצרה נגמר.'; }
+  else if (mins >= 10) { level = 1; why = 'עברו 10 דקות. חלון העסקה הקצרה נגמר ואתה ברווח.'; }
+  else if (roi >= 0.6 * t.pct && bad.length) { level = 1; why = `עברת 60% מהדרך ליעד ו-${bad.join(' ו-')} נחלש.`; }
+  else if (mins >= 5 && roi > 0 && bad.length) { level = 1; why = `אתה ברווח, בתוך חלון 5–10 הדקות, ו-${bad.join(' ו-')} נגדך.`; }
+  else if (bad.length === 2) { level = 1; why = `בנר של דקה ${bad.join(' ו-')} נגדך.`; }
+  return { level, why, win, roi, move, price, mins };
+}
+
+function renderTrades() {
+  const LV = ['להחזיק', 'לשקול יציאה', 'לצאת עכשיו'];
+  $('myTrades').innerHTML = trades.map((t) => {
+    const d = track[t.sym], a = d ? advise(t, d) : null, tp = tpOf(t), sl = t.sl || liqOf(t);
+    const lo = Math.min(sl, tp), span = Math.abs(tp - sl) || 1, pos = (p) => Math.max(0, Math.min(100, (p - lo) / span * 100));
+    const ePos = pos(t.entry), pPos = a ? pos(a.price) : ePos, mm = a ? Math.floor(a.mins) : 0, ss = a ? Math.floor(a.mins * 60) % 60 : 0;
+    return `<div class="trade l${a ? a.level : 0} ${a?.win ? 'win' : ''}" data-s="${t.sym}">
+      <div class="row"><span><i class="beat ${t.side < 0 ? 'r' : ''}"></i><span class="sym num">${t.sym.replace('USDT', '')}</span><span class="side ${t.side > 0 ? 'l' : 's'}">${t.side > 0 ? 'לונג' : 'שורט'} <span class="num">×${t.lev}</span></span></span>
+        <b class="roi num ${!a ? 'mute' : a.roi >= 0 ? 'up' : 'down'}">${a ? sgn(a.roi, 1) + '%' : '…'}</b></div>
+      <div class="tbar"><i style="left:${Math.min(ePos, pPos)}%;width:${Math.abs(pPos - ePos)}%;background:${a && a.roi >= 0 ? 'var(--green)' : 'var(--red)'}"></i><u style="left:${ePos}%"></u><s style="left:${pPos}%"></s></div>
+      <div class="tends"><span>${t.side > 0 ? 'SL ' + fmtP(sl) : 'TP ' + fmtP(tp)}</span><span>${t.side > 0 ? 'TP ' + fmtP(tp) : 'SL ' + fmtP(sl)}</span></div>
+      <div class="tinfo">כניסה <b class="num">${fmtP(t.entry)}</b> · עכשיו <b class="num">${a ? fmtP(a.price) : '–'}</b> · תזוזה <b class="num">${a ? sgn(a.move, 2) + '%' : '–'}</b> · זמן בעסקה <b class="num">${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}</b></div>
+      <div class="adv"><span class="badge a${a ? a.level : 0}">${a ? LV[a.level] : 'טוען…'}</span><span>${a ? a.why : ''}</span></div>
+      <button class="x" data-x="${t.id}">סגרתי את העסקה – הסר מעקב</button></div>`;
+  }).join('');
+}
+
+async function pollTrades() {
+  for (const t of [...trades]) {
+    try {
+      const d = await (await fetch('/api/track?symbol=' + t.sym)).json();
+      if (d.error) continue;
+      track[t.sym] = d;
+      const a = advise(t, d), name = t.sym.replace('USDT', '');
+      if (a.level !== t.lvl) {
+        if (a.level === 2) alertUser(`${a.win ? 'הגעת ליעד' : 'לצאת עכשיו'}: ${name}`, `${a.why} רווח/הפסד כרגע ${sgn(a.roi, 1)}%`, a.win ? 'long' : 'short', t.sym, a.win ? 'cash' : [880, 620, 880, 620, 880]);
+        else if (a.level === 1) alertUser(`לשקול יציאה: ${name}`, `${a.why} רווח/הפסד כרגע ${sgn(a.roi, 1)}%`, '', t.sym, [700, 700]);
+        t.lvl = a.level; saveTrades();
+      }
+    } catch { /* keep the last reading */ }
+  }
+  renderTrades();
+  setTimeout(pollTrades, trades.length ? 4000 : 20000);
+}
+setInterval(() => trades.length && renderTrades(), 1000);   // keeps the clock ticking between readings
+
+function calcDlg() {
+  if (!dlgT) return;
+  const t = { ...dlgT, entry: num($('dEntry').value), lev: num($('dLev').value), pct: num($('dPct').value), sl: num($('dSl').value) };
+  const ok = t.entry > 0 && t.lev >= 1 && t.pct > 0;
+  $('dOk').disabled = !ok;
+  if (!ok) { $('dCalc').innerHTML = '<span class="mute">מלא מחיר כניסה, מינוף ואחוז רווח.</span>'; return; }
+  const tp = tpOf(t), liq = liqOf(t), slMove = t.sl > 0 ? t.side * (t.sl - t.entry) / t.entry * 100 : null, slBad = t.sl > 0 && t.side * (t.sl - liq) <= 0, slSide = t.sl > 0 && slMove >= 0;
+  $('dCalc').innerHTML = `<div>יעד (TP): <b class="num up">${fmtP(tp)}</b> · תזוזה של <span class="num">${(t.pct / t.lev).toFixed(2)}%</span> במחיר = <span class="num">${t.pct}%</span> רווח על הכסף</div>
+    <div>סטופ (SL): ${t.sl > 0 ? `<b class="num down">${fmtP(t.sl)}</b> · <span class="num">${sgn(slMove, 2)}%</span> במחיר = <span class="num">${sgn(slMove * t.lev, 1)}%</span> על הכסף` : '<span class="mute">לא הוגדר</span>'}</div>
+    <div>חיסול משוער: <b class="num">${fmtP(liq)}</b> · בערך <span class="num">${(95 / t.lev).toFixed(2)}%</span> נגדך</div>
+    ${slSide ? '<div class="down">הסטופ נמצא בצד הלא נכון של מחיר הכניסה.</div>' : slBad ? '<div class="down">שים לב: הסטופ רחוק יותר ממחיר החיסול המשוער, כלומר הוא לא יגן עליך.</div>' : ''}
+    <div class="mute">${dlgT.atrNote || ''}</div>`;
+}
+async function openDlg(s, side, entry) {
+  const price = state?.coins.find((c) => c.s === s)?.price;
+  dlgT = { sym: s, side: side || 1 };
+  let last = {}; try { last = JSON.parse(localStorage.getItem('tradeLast') || '{}'); } catch {}
+  $('dSym').textContent = s.replace('USDT', ''); $('dEntry').value = price || entry || ''; $('dLev').value = last.lev || 10; $('dPct').value = last.pct || 10; $('dSl').value = '';
+  const paint = () => document.querySelectorAll('.sideSel button').forEach((b) => b.classList.toggle('on', +b.dataset.side === dlgT.side));
+  paint(); calcDlg(); $('dlg').showModal();
+  try {   // suggested stop for a short trade: 1.5 x the average 5-minute candle range (ATR)
+    const d = await (await fetch('/api/track?symbol=' + s)).json();
+    if (d.error || dlgT?.sym !== s) return;
+    dlgT.atr5 = d.m5.atr; if (!$('dEntry').value) $('dEntry').value = d.price;
+    const fill = () => { const e = num($('dEntry').value); if (e > 0 && !$('dSl').dataset.touched) $('dSl').value = +(e - dlgT.side * 1.5 * dlgT.atr5).toPrecision(6); };
+    dlgT.fill = fill; fill();
+    dlgT.atrNote = `הסטופ שמולא הוא הצעה לעסקה קצרה: 1.5 פעמים טווח הנר הממוצע של 5 דקות (${(1.5 * d.m5.atr / d.price * 100).toFixed(2)}% מהמחיר). זה כלל אצבע שלא נבדק סטטיסטית.`;
+    calcDlg();
+  } catch {}
+}
+document.querySelectorAll('.sideSel button').forEach((b) => b.onclick = () => { dlgT.side = +b.dataset.side; document.querySelectorAll('.sideSel button').forEach((x) => x.classList.toggle('on', x === b)); dlgT.fill?.(); calcDlg(); });
+for (const id of ['dEntry', 'dLev', 'dPct']) $(id).oninput = () => { if (id === 'dEntry') dlgT.fill?.(); calcDlg(); };
+$('dSl').oninput = () => { $('dSl').dataset.touched = '1'; calcDlg(); };
+$('dCancel').onclick = () => $('dlg').close();
+$('dlg').addEventListener('close', () => { dlgT = null; delete $('dSl').dataset.touched; });
+$('dOk').onclick = () => {
+  const t = { id: Date.now(), sym: dlgT.sym, side: dlgT.side, entry: num($('dEntry').value), lev: num($('dLev').value), pct: num($('dPct').value), sl: num($('dSl').value) || 0, t0: Date.now(), lvl: 0 };
+  trades = trades.filter((x) => x.sym !== t.sym).concat(t); saveTrades();
+  try { localStorage.setItem('tradeLast', JSON.stringify({ lev: t.lev, pct: t.pct })); } catch {}
+  $('dlg').close(); renderTrades(); render(); select(t.sym, '5'); setTab('chart');
+  fetch('/api/track?symbol=' + t.sym).then((r) => r.json()).then((d) => { if (!d.error) { track[t.sym] = d; renderTrades(); } }).catch(() => {});
+};
+$('myTrades').onclick = (e) => {
+  const x = e.target.closest('[data-x]');
+  if (x) { trades = trades.filter((t) => String(t.id) !== x.dataset.x); saveTrades(); renderTrades(); render(); return; }
+  const el = e.target.closest('[data-s]'); if (el) { select(el.dataset.s, '5'); setTab('chart'); }
+};
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-enter]'); if (!b) return;
+  e.stopPropagation(); e.preventDefault();
+  const [s, side, entry] = b.dataset.enter.split('|'); openDlg(s, +side, +entry);
+}, true);
+$('enterBtn').onclick = () => { const c = state?.coins.find((x) => x.s === sym), b = c && best(c); openDlg(sym, b ? b[0] : 1, c?.price); };
+renderTrades(); pollTrades();
 refresh(); connectServer(); setInterval(refresh, 15000);
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('/sw.js').catch(() => {});
 </script>

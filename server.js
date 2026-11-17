@@ -23,6 +23,10 @@ app.get('/api/chart', async (req, res) => {
   try { res.json(await engine.chart(String(req.query.symbol || ''), String(req.query.interval || engine.cfg.tf))); }
   catch (e) { res.status(400).json({ error: e.message }); }
 });
+app.get('/api/track', async (req, res) => {
+  try { res.json(await engine.track(String(req.query.symbol || ''))); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
 app.get('/healthz', (req, res) => res.send('ok'));
 
 const server = http.createServer(app);

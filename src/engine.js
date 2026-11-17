@@ -417,6 +417,21 @@ export class Engine extends EventEmitter {
     };
   }
 
+  // Short-term read (1 and 5 minute candles) for a trade the user is in. Used only by the trade tracker.
+  async track(sym) {
+    if (!this.coins.has(sym)) throw new Error('unknown symbol');
+    const hit = (this.trackCache ||= new Map()).get(sym);
+    if (hit && Date.now() - hit.t < 2500) return hit.v;
+    const read = async (iv) => {
+      const c = await getKlines(sym, iv, 300), ind = computeIndicators(c), i = c.length - 1;
+      return { close: c[i].c, ut: ind.utDir[i], utAge: ind.utAge[i], bs: ind.bsDir[i], bsAge: ind.bsAge[i], bv: ind.bvDelta[i], vw: ind.vwapSide[i], rsi: ind.rsi[i], atr: ind.atr[i] };
+    };
+    const [m1, m5] = await Promise.all([read('1'), read('5')]);
+    const v = { sym, t: Date.now(), price: m1.close, m1, m5 };
+    this.trackCache.set(sym, { t: Date.now(), v });
+    return v;
+  }
+
   async chart(sym, interval) {
     if (!this.coins.has(sym) || !INTERVAL_MS[interval]) throw new Error('unknown symbol or interval');
     const c = await getKlines(sym, interval, 1000);
