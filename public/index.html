@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b0e14">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
@@ -19,6 +19,12 @@
   :root { --bg:#070a12; --panel:#0e1320; --panel2:#151c2c; --panel3:#1c2538; --line:#232c42; --text:#eef1f7; --mute:#8a94ab; --green:#2dd4a0; --red:#ff5d6c; --amber:#fbbf24; --blue:#6aa8ff; --r:14px; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; margin: 0; }
+  /* behave like an installed app, not a web page: no zoom on double tap, no sideways drift, no rubber-band bounce */
+  html { touch-action: manipulation; -webkit-text-size-adjust: 100%; overscroll-behavior: none; }
+  body { overflow: hidden; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea { -webkit-user-select: text; user-select: text; }
+  #center, #sidePane, #coins, #myTrades { overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  #layers { overscroll-behavior: contain; }
   body { background: radial-gradient(1200px 500px at 85% -10%, #14213d55, transparent), var(--bg); color: var(--text); font: 14px/1.45 'Rubik', -apple-system, "Segoe UI", Arial, sans-serif; display: flex; flex-direction: column; }
   .num { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
   .up { color: var(--green); } .down { color: var(--red); } .mute { color: var(--mute); } .amb { color: var(--amber); }
@@ -149,7 +155,9 @@
   #splash.out { opacity: 0; pointer-events: none; }
 
   @media (max-width: 1000px) {
+    html, body { position: fixed; inset: 0; width: 100%; }
     body { height: 100dvh; }
+    input, select { font-size: 16px; }   /* iOS zooms the page when a smaller field gets focus */
     main { display: block; overflow: hidden; }
     main > * { display: none !important; height: 100%; overflow-y: auto; border: 0 !important; }
     body[data-tab="chart"] #center, body[data-tab="coins"] #coinsPane { display: flex !important; }
@@ -716,6 +724,8 @@ document.addEventListener('click', (e) => {
 }, true);
 $('enterBtn').onclick = () => { const c = state?.coins.find((x) => x.s === sym), b = c && best(c); openDlg(sym, b ? b[0] : 1, c?.price); };
 renderTrades(); pollTrades();
+// iOS ignores the no-zoom viewport hint in some cases: block pinch zoom directly (double-tap zoom is switched off by touch-action in the stylesheet)
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
 refresh(); connectServer(); setInterval(refresh, 15000);
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('/sw.js').catch(() => {});
 </script>
