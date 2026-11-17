@@ -37,6 +37,9 @@
   .coin b { font-weight: 600; } .coin small { color: var(--mute); }
   .num { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
   .up { color: var(--green); } .down { color: var(--red); } .mute { color: var(--mute); }
+  #power { display: flex; align-items: center; gap: 8px; padding: 4px 12px 6px; font-size: 13px; direction: rtl; flex-wrap: wrap; }
+  #pwBar { flex: 1; min-width: 80px; height: 8px; border-radius: 4px; background: var(--red); overflow: hidden; direction: rtl; }
+  #pwFill { display: block; height: 100%; width: 50%; background: var(--green); transition: width .2s; }
   .dots { display: inline-flex; gap: 3px; vertical-align: middle; }
   .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mute); } .dot.g { background: var(--green); } .dot.r { background: var(--red); }
   .conf { font-size: 12px; padding: 1px 7px; border-radius: 6px; background: var(--bg); }
@@ -102,6 +105,12 @@
       <span class="spacer"></span>
       <span id="ivs"></span>
     </div>
+    <div id="power" title="הערכה לפי נפח המסחר והמקום שבו כל נר נסגר, ממוצע של 14 נרות">
+      <span class="up">קונים <b class="num" id="pwB">–</b></span>
+      <div id="pwBar"><i id="pwFill"></i></div>
+      <span class="down"><b class="num" id="pwS">–</b> מוכרים</span>
+      <span class="mute" id="pwWho"></span>
+    </div>
     <div id="chart"></div>
     <div id="read"></div>
     <div id="odds" class="note" style="padding:0 12px 6px"></div>
@@ -163,6 +172,19 @@ const bsSlowS = chart.addLineSeries({ ...bsOpts, color: '#c084fc' });
 const bvS = chart.addHistogramSeries({ priceScaleId: 'bv', priceLineVisible: false, lastValueVisible: false, priceFormat: { type: 'percent' } });
 chart.priceScale('bv').applyOptions({ scaleMargins: { top: 0.68, bottom: 0.18 }, visible: false });
 
+// Buyers vs sellers strength in percent (from Buy Sell Volume). Shows the latest bar, or the bar under the crosshair.
+function showPower(delta, t) {
+  if (delta == null) return;
+  const b = Math.round((1 + delta) * 50), who = b > 50 ? 'הכוח אצל הקונים' : b < 50 ? 'הכוח אצל המוכרים' : 'שקול';
+  $('pwB').textContent = b + '%'; $('pwS').textContent = (100 - b) + '%'; $('pwFill').style.width = b + '%';
+  $('pwWho').textContent = who + (t ? ' · ' + timeHe(t) : ' · עכשיו');
+}
+chart.subscribeCrosshairMove((p) => {
+  if (!chartData) return;
+  const i = p.time == null ? -1 : chartData.candles.findIndex((k) => k[0] / 1000 + TZ === p.time);
+  if (i < 0) showPower(chartData.bv.at(-1)); else showPower(chartData.bv[i], chartData.candles[i][0]);
+});
+
 async function loadChart(keepView) {
   const want = sym + '|' + iv;
   let d;
@@ -179,6 +201,7 @@ async function loadChart(keepView) {
   bsFastS.setData(d.candles.map((k, i) => ({ time: T(k[0]), value: d.bsFast[i] })));
   bsSlowS.setData(d.candles.map((k, i) => ({ time: T(k[0]), value: d.bsSlow[i] })));
   bvS.setData(d.candles.map((k, i) => ({ time: T(k[0]), value: d.bv[i] * 100, color: d.bv[i] >= 0 ? '#22c55e99' : '#ef444499' })));
+  showPower(d.bv.at(-1));
   const pr = (arr) => d.candles.map((k, i) => arr[i] == null ? null : { time: T(k[0]), value: arr[i] * 100 }).filter(Boolean);
   pLS.setData(pr(d.pL)); pSS.setData(pr(d.pS));
 
